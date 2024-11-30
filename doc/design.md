@@ -855,14 +855,21 @@ The following methods are used to manage the history:
 
 The `Application` class is the main class of the application. It is responsible for the GUI and the logic of the application.
 
-It has the following attributes:
+To hold the GUI elements, the class has the following attributes:
+
+- `root`: a `tk.Tk` object representing the root window.
+- `main_content`: a `ttk.Frame` object representing the main content area.
+- `toolbar`: a `ttk.Frame` object representing the toolbar.
+- `protocol_panel`: a `ttk.Frame` object representing the protocol panel.
+- `diagram_canvas`: a `ttk.Frame` object representing the diagram canvas.
+- `properties_panel`: a `ttk.Frame` object representing the properties panel.
 
 - `plantuml_manager`: a `PlantUMLManager` object.
-- `main_window`: a `MainWindow` object.
 
 It has the following methods:
 
-- `start()`: starts the application.
+- `
+
 
 # Use cases
 
