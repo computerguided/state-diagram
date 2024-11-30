@@ -1,2 +1,1 @@
-# state-diagram
-State Diagram Editor
+# State Diagram Editor

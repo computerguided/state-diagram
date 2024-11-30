@@ -282,9 +282,49 @@ A basic workflow of the State Diagram Editor can be as follows:
 
 ### Create a new diagram
 
-When the user creates a new diagram, the name of the component must be specified. This name is used to identify the component that the state diagram describes.
+When the application is started, the **default diagram** is loaded as given in the following PlantUML code:
 
-Suppose the name is `Node`, then internally, the default PlantUML string is created as follows:
+```
+@startuml
+' == Formatting ==
+hide empty description
+skinparam Arrow {
+  FontSize 9
+}
+skinparam State {
+  FontSize 12
+}
+
+' == Default messages ==
+!$Timeout = Timeout
+!$No = No
+!$Yes = Yes
+
+' == Interfaces ==
+
+' == Messages ==
+
+state component as "Component Name" {
+state START <<start>> #000000
+
+' == States ==
+
+' == Choice-points ==
+
+' == Transitions ==
+}
+@enduml
+```
+
+The user is presented with the default diagram as shown below:
+
+![](https://www.plantuml.com/plantuml/png/LL31IWCn4BtdAyOgU1BKcz2MbehWmJsuU_4ux4xRmMOc9BE8blwxsUmYQmvXtkFDUydR9CDelJ-vMrYju4MZHpEMGqRko1q1-M3Vq55g8mTZ5PS-MG96zB2DKR_Wx20lYjNyG_3aBZD1RMZqN_3mc1LZsZFjiJyPU4e93vI6pAkRXZrfRx22QSfSfHbMcgUFGGRvdZnUnIZkiHstH-vjvkTIUKAhFgYG6622nUuFLUXf0UT9LJVRzmQMorBAUWtNz-MCjkKpyvZTKRcbkw0iDgERY99uQAgG5xSXwNB3lm00)
+
+The user can start editing the diagram by changing the name of the component.
+
+The user can also create a new diagram, in which case the name of the component must be specified. This name is used to identify the component that the state diagram describes.
+
+Suppose the name is `Node`, then again, the default PlantUML string is loaded but now with the component name set to `Node` as follows:
 
 ```
 @startuml
@@ -565,7 +605,7 @@ The toolbar provides quick access to common actions. The following table lists t
 | New | Start a new diagram. | Always |
 | Open | Load an existing PlantUML file. | Always |
 | Save | Save the current diagram as a PlantUML file. | Always |
-| Delete | Delete the selected diagram elements. | One or more diagram elements are selected. |
+| Delete elements | Delete the selected diagram elements. | One or more diagram elements are selected. |
 | Add state | Add a new state to the diagram. | Always |
 | Add choice-point | Add a new choice-point to the diagram. | Always |
 | Add transition | Add a new transition to the diagram. | Two states or a state and a choice-point are selected. |
@@ -579,7 +619,11 @@ The diagram canvas displays the state diagram as rendered by the PlantUML server
 
 #### Protocol Panel
 
-The protocol panel shows the list of interfaces and a list of messages.
+The protocol panel has two sections:
+- **Interfaces**: shows the list of interfaces.
+- **Messages**: shows the list of messages.
+
+Each section has a list of entries of which one can be selected. The selected entry is indicated by a colored background. A "Delete" button is available to delete the selected entry.
 
 The list of messages can be filtered by selecting an interface from the list of interfaces. When no interface is selected, all possible messages are shown.
 
@@ -674,5 +718,236 @@ This renders as follows:
 
 ![](https://www.plantuml.com/plantuml/png/ZPBVRzCm4CVV_LSS0Oa7L8br0xQmbfLCI7sWGcqaX5WrMSbjjPROmNRumRJ_7ISvjsxIIlGXFVi-z_NNvxiobcjRbmLx2PC9V5AwvDOAUUzMR2Do12mh-mToD9aMbHLAClCWPCKrBs6cjVe5ZmnSeRGhyHVXmYtIZSWU91e3vvHALA4qF7zDF_OKYAmijxWlSZ8-MjVvlCOxNXSMIZI6twDft3vxaOeILMrX0XIvlOLoouLoqRS60_SbZRcqgEzuvgkNwM-NZznVHCHdh-xpjucI4ZExn1yERIjUGHH7pNUNYlPXpESoFunJqXTS2vDrsuSgzhBEecdxbgcoKXAb1MuWMgWS8tZqoLKwMwPmUTa-ydJg6qdNQnjlN4JqBF-9sWhZNf_8a_U5a1XtCL5aV0UD0sZi3qRjjBPtRBrrUpToknkHm6aWS4hUaeqI6Oug9QGDB2PVRhzkXCL262yxD-2LWzG7BtuMY9-HUAgvDAAPvLQwwzBeEtLdFPg6hM11l8NUz228mK_VGVwju_lcO-YD5Ei1llXTKqmOdUMc-1XzlgwhqT3TGh50miCNn-zn29-jfuEdZM4mxApF-FgFm-E6WtyZlOMZEedJ-IyZJ-mAPLwNnJy0)
 
-This image is not displayed in the diagram canvas but kept in memory. When the user clicks on the original diagram, the coordinates of the click are used to retrieve the color of the element at the same coordinates in the selection diagram. If the color matches the color of an element in the original diagram, that element is selected, or deselected when the user clicks again on the same element.
+This image is not displayed in the diagram canvas but kept in memory.
+
+Every time a new diagram is loaded or the current diagram is updated, the selection diagram is updated and the selection mask is recreated.
+
+When the user clicks on the original diagram, the coordinates of the click are used to retrieve the color of the element at the same coordinates in the selection mask. If the color matches the color of an element in the original diagram, that element is selected, or deselected when the user clicks again on the same element.
+
+# Data structures
+_This section describes the data structures used in the application._
+
+## Diagram
+
+The `Diagram` class is responsible for holding the data of a diagram. It has the following attributes:
+
+- `plantuml_code`: a string containing the PlantUML code.
+- `rendered_image`: an image containing the rendered image of the PlantUML code.
+
+It has the following methods:
+
+- `set_plantuml_code(code: str)`: sets the PlantUML code. This will also update the rendered image.
+
+## Element
+
+The `Element` class is the base class for all elements in the diagram. It has the following attributes:
+
+- `element_type`: an enum containing the type of the element (e.g. `Interface`, `Message`, `State`, `ChoicePoint`, or `Transition`).
+- `identifier`: an integer containing the identifier of the element.
+
+## Interface
+
+The `Interface` class is a subclass of `Element` with the type set to `Interface` and is responsible for holding the data of an interface. It has the following additional attributes:
+
+- `name`: a string containing the name of the interface.
+
+## Message
+
+The `Message` class is a subclass of `Element` with the type set to `Message` and is responsible for holding the data of a message. It has the following additional attributes:
+
+- `name`: a string containing the name of the message.
+- `interface`: a string containing the name of the interface of the message.
+
+## State
+
+The `State` class is a subclass of `Element` with the type set to `State` and is responsible for holding the data of a state. It has the following additional attributes:
+
+- `name`: a string containing the name of the state.
+- `display_name`: a string containing the display name of the state.
+
+## Choice-point
+
+The `ChoicePoint` class is a subclass of `Element` with the type set to `ChoicePoint` and is responsible for holding the data of a choice-point. It has the following additional attributes:
+
+- `name`: a string containing the name of the choice-point.
+- `question`: a string containing the question of the choice-point.
+
+## Transition
+
+The `Transition` class is a subclass of `Element` with the type set to `Transition` and is responsible for holding the data of a transition. It has the following additional attributes:
+
+- `source_state_name`: a string containing the name of the source state of the transition.
+- `target_state_name`: a string containing the name of the target state of the transition.
+- `connector_type`: a string containing the type of the connector of the transition.
+- `connector_length`: an integer containing the length of the connector of the transition.
+- `messages`: a list of strings containing the names of the messages of the transition.
+
+## PlantUML manager
+
+The `PlantUMLManager` class is responsible for loading and saving the PlantUML code, creating the selection mask and updating the diagram canvas with the new selection mask.
+
+It has the following attributes:
+
+- **Diagrams**:
+  - `state_diagram`: a `Diagram` object containing the PlantUML code and rendered image of the state diagram.
+  - `selection_mask_diagram`: a `Diagram` object containing the PlantUML code and rendered image of the selection mask.
+  - `selection_indication_diagram`: a `Diagram` object containing the PlantUML code and rendered image of the selection indication.
+
+- **Elements**:
+  - `interfaces`: a list of `Interface` objects.
+  - `messages`: a list of `Message` objects.
+  - `states`: a list of `State` objects.
+  - `choice_points`: a list of `ChoicePoint` objects.
+  - `transitions`: a list of `Transition` objects.
+
+- **Administration**:
+  - `elements`: the list of all elements.
+  - `selected_element_identifiers`: a list of the identifiers of the selected elements.
+
+- **History**:
+  - `history`: a list of PlantUML code strings representing the history.
+  - `current_index`: an integer representing the current index in the history.
+
+The class has the following method to load a diagram:
+
+- `load_diagram(plantuml_code: str) -> bool`: loads the PlantUML code and updates all the diagrams. It returns `True` if successful and `False` otherwise, e.g. when the PlantUML code is invalid.
+
+The following method is used to get the element at the given coordinates:
+
+- `get_element_at(x: int, y: int) -> Element | None`: returns the element at the given coordinates or `None` if no element is at the given coordinates.
+
+The following methods are used to add new elements to the diagram. They return the element if successful and `None` otherwise (e.g. the element already exists):
+
+- `add_interface(interface_name: str) -> Interface | None`: adds a new interface to the diagram.
+- `add_message(interface_name: str, message_name: str) -> Message | None`: adds a new message to the diagram.
+- `add_state(state_name: str, display_name: str = "") -> State | None`: adds a new state to the diagram.
+- `add_choice_point(choice_point_name: str, question: str = "") -> ChoicePoint | None`: adds a new choice-point to the diagram.
+- `add_transition(source_name: str, target_name: str, connector_type: str, connector_length: int, messages: List[str]) -> Transition | None`: adds a new transition to the diagram.
+
+The following methods are used to update elements, and return `True` if successful and `False` otherwise (e.g. the element does not exist):
+
+- `update_state(state: State, new_name: str | None = None, new_display_name: str | None = None) -> bool`: updates the name and/or display name of a state. When the name is updated, it also updates the name of the source and target states of all transitions that have the state as source or target.
+- `update_choice_point(choice_point: ChoicePoint, new_name: str | None = None, new_question: str | None = None) -> bool`: updates the name and/or question of a choice-point if provided. When the name is updated, it also updates the name of the source state of all transitions that have the choice-point as source.
+- `update_transition(transition: Transition, new_connector_type: str | None = None, new_connector_length: int | None = None, new_messages: List[Message] | None = None) -> bool`: updates the connector type, length or messages of a transition when provided.
+
+All these methods will result in the PlantUML code of the `state_diagram` being updated, which in turn updates the rendered image and the selection mask and the selection indication diagram.
+
+For handling selection of diagram elements (states, choice-points, transitions), the following methods are used:
+
+- `select_element(element: Element)`: selects the given element. This will update the `selected_element_identifiers` list and the `selection_indication_diagram`.
+- `deselect_element(element: Element)`: deselects the given element. This will remove the element from the `selected_element_identifiers` list and update the `selection_indication_diagram`.
+- `get_selected_elements() -> List[Element]`: returns the list of selected elements.
+- `deselect_all_elements()`: deselects all elements. This will clear the `selected_element_identifiers` list and update the `selection_indication_diagram`.
+
+Note that the selection of protocol elements (interfaces and messages) is handled outside the `PlantUMLManager` class as it does not change the rendered image of the diagram.
+
+The following method is used to delete elements from the diagram:
+
+- `delete_elements(elements: List[Element])`: deletes the given elements from the diagram. This will update the PlantUML code of the `state_diagram`, which in turn updates the rendered image, the selection mask and the selection indication diagram.
+
+The following methods are used to manage the history:
+
+- `add_history(plantuml_code: str)`: adds a new entry to the history. It will also increment the `current_index` and remove any future entries in the history, i.e. the history will only contain the current entry and all previous entries.
+- `undo() -> str | None`: undoes the last action, by decrementing the `current_index` and returning the string at the new `current_index` or `None` if the `current_index` is 0 (the first action in the history).
+- `redo() -> str | None`: redoes the last action, by incrementing the `current_index` and returning the string at the new `current_index` or `None` if the `current_index` is equal to the length of the history (the last action in the history).
+
+## Application
+
+The `Application` class is the main class of the application. It is responsible for the GUI and the logic of the application.
+
+It has the following attributes:
+
+- `plantuml_manager`: a `PlantUMLManager` object.
+- `main_window`: a `MainWindow` object.
+
+It has the following methods:
+
+- `start()`: starts the application.
+
+# Use cases
+
+_This section describes the use cases of the application._
+
+## Overview
+
+The application has the following use cases:
+
+1. [Start the application](#use-case-1-start-the-application)
+2. [Create a new diagram](#use-case-2-create-a-new-diagram)
+3. [Load an existing diagram](#use-case-3-load-an-existing-diagram)
+4. [Save the current diagram](#use-case-4-save-the-current-diagram)
+5. [Add a new state](#use-case-5-add-a-new-state)
+6. [Add a new choice-point](#use-case-6-add-a-new-choice-point)
+7. [Add a new interface](#use-case-7-add-a-new-interface)
+8. [Select an interface in the protocol panel](#use-case-8-select-an-interface-in-the-protocol-panel)
+9. [Deselect the interface in the protocol panel](#use-case-9-deselect-the-interface-in-the-protocol-panel)
+10. [Delete the selected interface](#use-case-10-delete-the-selected-interface)
+11. [Add a new message](#use-case-11-add-a-new-message)
+12. [Select a message in the protocol panel](#use-case-12-select-a-message-in-the-protocol-panel)
+13. [Deselect the message in the protocol panel](#use-case-13-deselect-the-message-in-the-protocol-panel)
+14. [Delete the selected message](#use-case-14-delete-the-selected-message)
+15. [Add a new transition](#use-case-15-add-a-new-transition)
+16. [Select an element in the diagram canvas](#use-case-16-select-an-element-in-the-diagram-canvas)
+17. [Deselect an element in the diagram canvas](#use-case-17-deselect-an-element-in-the-diagram-canvas)
+18. [Update the properties of a selected diagram element](#use-case-18-update-the-properties-of-a-selected-diagram-element)
+19. [Delete the selected diagram elements](#use-case-19-delete-the-selected-diagram-elements)
+
+These use cases are described in more detail below.
+
+## Use case 1: Start the application
+
+**Objective**: Start the application and display the main window with the toolbar, diagram canvas, protocol panel, and properties panel. The diagram canvas shows the default state diagram.
+
+**Preconditions**: The application is not running.
+
+**Steps**:
+
+1. Start the application.
+2. Create the main window.
+3. Create the diagram canvas and add it to the main window.
+4. Create the protocol panel and add it to the main window.
+5. Create the properties panel and add it to the main window.
+6. Create the toolbar and add it to the main window.
+7. Display the main window.
+8. Create the default state diagram.
+9. Load the default state diagram into the `PlantUMLManager`.
+10. Get the rendered image of the default state diagram.
+11. Display the rendered image in the diagram canvas.
+
+## Use case 2: Create a new diagram
+
+## Use case 3: Load an existing diagram
+
+## Use case 4: Save the current diagram
+
+## Use case 5: Add a new state
+
+## Use case 6: Add a new choice-point
+
+## Use case 7: Add a new interface
+
+## Use case 8: Select an interface in the protocol panel
+
+## Use case 9: Deselect the interface in the protocol panel
+
+## Use case 10: Delete the selected interface
+
+## Use case 11: Add a new message
+
+## Use case 12: Select a message in the protocol panel
+
+## Use case 13: Deselect the message in the protocol panel
+
+## Use case 14: Delete the selected message
+
+## Use case 15: Add a new transition
+
+## Use case 16: Select an element in the diagram canvas
+
+## Use case 17: Deselect an element in the diagram canvas
+
+## Use case 18: Update the properties of a selected diagram element
+
+## Use case 19: Delete the selected diagram elements
+
 
