@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 # Enums
 class ElementType(Enum):
@@ -54,7 +54,7 @@ class Message(Element):
 
 # State class
 class State(Element):
-    def __init__(self, identifier: int, name: str, display_name: Optional[str] = None):
+    def __init__(self, identifier: int, name: str, display_name: str | None = None):
         super().__init__(ElementType.STATE, identifier)
         self.name = name
         self.display_name = display_name
@@ -86,7 +86,7 @@ class ChoicePoint(Element):
 
 # Transition class
 class Transition(Element):
-    def __init__(self, identifier: int, source_state: State, target_state: State, connector_type: ConnectorType, connector_length: int, messages: Optional[List[Message]] = None):
+    def __init__(self, identifier: int, source_state: State, target_state: State, connector_type: ConnectorType, connector_length: int, messages: List[Message] | None = None):
         super().__init__(ElementType.TRANSITION, identifier)
         self.source_state = source_state
         self.target_state = target_state
