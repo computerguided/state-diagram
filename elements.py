@@ -1,7 +1,9 @@
 from enum import Enum
 from typing import List
 
+# ----------------------------------------------------------------------------------------------------------------------
 # Enums
+# ----------------------------------------------------------------------------------------------------------------------
 class ElementType(Enum):
     INTERFACE = "Interface"
     MESSAGE = "Message"
@@ -15,7 +17,9 @@ class ConnectorType(Enum):
     UP = "Up"
     DOWN = "Down"
 
+# ----------------------------------------------------------------------------------------------------------------------
 # Element base class
+# ----------------------------------------------------------------------------------------------------------------------
 class Element:
     def __init__(self, element_type: ElementType, identifier: int):
         self.element_type = element_type
@@ -27,7 +31,9 @@ class Element:
     def get_variable_name(self) -> str:
         raise NotImplementedError("Subclasses should implement this method.")
 
+# ----------------------------------------------------------------------------------------------------------------------
 # Interface class
+# ----------------------------------------------------------------------------------------------------------------------
 class Interface(Element):
     def __init__(self, identifier: int, name: str):
         super().__init__(ElementType.INTERFACE, identifier)
@@ -39,7 +45,9 @@ class Interface(Element):
     def get_variable_name(self) -> str:
         return f"${self.name}"
 
+# ----------------------------------------------------------------------------------------------------------------------
 # Message class
+# ----------------------------------------------------------------------------------------------------------------------
 class Message(Element):
     def __init__(self, identifier: int, name: str, interface: Interface):
         super().__init__(ElementType.MESSAGE, identifier)
@@ -52,7 +60,9 @@ class Message(Element):
     def get_variable_name(self) -> str:
         return f"{self.interface.get_variable_name()}_{self.name}"
 
+# ----------------------------------------------------------------------------------------------------------------------
 # State class
+# ----------------------------------------------------------------------------------------------------------------------
 class State(Element):
     def __init__(self, identifier: int, name: str, display_name: str | None = None):
         super().__init__(ElementType.STATE, identifier)
@@ -68,7 +78,9 @@ class State(Element):
     def get_variable_name(self) -> str:
         return f"{self.name}"
 
+# ----------------------------------------------------------------------------------------------------------------------
 # ChoicePoint class
+# ----------------------------------------------------------------------------------------------------------------------
 class ChoicePoint(Element):
     def __init__(self, identifier: int, name: str, question: str):
         super().__init__(ElementType.CHOICE_POINT, identifier)
@@ -84,7 +96,9 @@ class ChoicePoint(Element):
     def get_variable_name(self) -> str:
         return f"CP_{self.name}"
 
+# ----------------------------------------------------------------------------------------------------------------------
 # Transition class
+# ----------------------------------------------------------------------------------------------------------------------
 class Transition(Element):
     def __init__(self, identifier: int, source_state: State, target_state: State, connector_type: ConnectorType, connector_length: int, messages: List[Message] | None = None):
         super().__init__(ElementType.TRANSITION, identifier)
