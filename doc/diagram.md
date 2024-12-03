@@ -1,6 +1,6 @@
 # Diagram
 
-_The `Diagram` class is responsible for holding the data of a diagram._
+_The `Diagram` class is responsible for holding the data of a diagram. It is generic as it doesn't assume the PlantUML type of the diagram._
 
 ## Dependencies
 

@@ -36,6 +36,7 @@ skinparam State {
 !$RTx_ConnectedInd = $RTx + ":" + ConnectedInd
 !$RTx_DisconnectInd = $RTx + ":" + DisconnectInd
 
+' == Component ==
 state component as "Node" {
 state START <<start>> #000000
 
@@ -667,7 +668,6 @@ The following PlantUML code shows the changes for the earlier diagram:
 hide empty description
 skinparam Arrow {
   FontSize 9
-  Thickness 8
   FontColor #00000000
 }
 skinparam State {
@@ -702,14 +702,14 @@ state CP_Whitelisted as "Is Server\nWhitelisted?" #000004;line:000004
 
 ' == Transitions ==
 START -[#000004]-> Advertising
-Advertising -[#000005]-> Advertising : $Timeout
-Advertising -[#000006]-> CP_Whitelisted : $RTx_ConnectReq
-CP_Whitelisted -[#000007]-> Connecting : $Yes
-CP_Whitelisted -[#000008]up--> Advertising : $No
-Connecting -[#000009]-> Advertising : $Timeout
-Connecting -[#00000A]> ServerConnected : $RTx_ConnectedInd
-ServerConnected -[#00000B]-> Advertising : $RTx_DisconnectInd\n$Timeout
-ServerConnected -[#00000C]-> ServerConnected : $RTx_ConnectedInd
+Advertising -[#000005,thickness=8]-> Advertising : $Timeout
+Advertising -[#000006,thickness=8]-> CP_Whitelisted : $RTx_ConnectReq
+CP_Whitelisted -[#000007,thickness=8]-> Connecting : $Yes
+CP_Whitelisted -[#000008,thickness=8]up--> Advertising : $No
+Connecting -[#000009,thickness=8]-> Advertising : $Timeout
+Connecting -[#00000A,thickness=8]> ServerConnected : $RTx_ConnectedInd
+ServerConnected -[#00000B,thickness=8]-> Advertising : $RTx_DisconnectInd\n$Timeout
+ServerConnected -[#00000C,thickness=8]-> ServerConnected : $RTx_ConnectedInd
 }
 @enduml
 ```

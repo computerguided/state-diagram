@@ -24,6 +24,7 @@ skinparam State {
 
 ' == Messages ==
 
+' == Component ==
 state component as "Component Name" {
 state START <<start>> #000000
 
@@ -36,6 +37,8 @@ state START <<start>> #000000
 }
 @enduml
 """
+
+
 
 # -----------------------------------------------------------------------------
 # Diagram class
