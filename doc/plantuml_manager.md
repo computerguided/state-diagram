@@ -13,12 +13,12 @@ from elements import Interface, Message, State, ChoicePoint, Transition, CodeTyp
 
 ## Constants
 
-The `PlantUMLManager` class has the following constants:
+For checking and parsing the PlantUML code, the `PlantUMLManager` class has the following constants:
 
 - `SECTION_START_INDICATOR`: a string containing the indicator for the start of a new section.
 
 ```python
-SECTION_START_INDICATOR = "== "
+SECTION_START_INDICATOR = "'== "
 ```
 
 - `SECTION_END_INDICATOR`: a string containing the indicator for the end of a section.
@@ -72,10 +72,10 @@ MESSAGES_PLANTUML_CODE = """
 - `COMPONENT_PLANTUML_CODE`: a string containing the PlantUML code for the component.
 
 ```python
-COMPONENT_PLANTUML_CODE = """
-'== Component ==
-state component as "Component Name" {
-state START <<start>>"""
+START_STATE_PLANTUML_CODE = """
+'== Start state ==
+state START <<start>>
+"""
 ```
 
 - `STATES_PLANTUML_CODE`: a string containing the PlantUML code for the states.
@@ -107,8 +107,13 @@ TRANSITIONS_PLANTUML_CODE = """
 ```python
 FOOTER_PLANTUML_CODE = """
 '== Footer ==
-}
 @enduml"""
+```
+
+- `SECTIONS`: a list of the section indicators.
+
+```python
+SECTIONS = [HEADER_PLANTUML_CODE, DEFAULT_MESSAGES_PLANTUML_CODE, INTERFACES_PLANTUML_CODE, MESSAGES_PLANTUML_CODE, START_STATE_PLANTUML_CODE, STATES_PLANTUML_CODE, CHOICE_POINTS_PLANTUML_CODE, TRANSITIONS_PLANTUML_CODE, FOOTER_PLANTUML_CODE]
 ```
 
 ## Attributes
@@ -152,6 +157,7 @@ To retrieve the specific elements from the PlantUML code, the following method i
 The following method is used to load the PlantUML code and update all the diagrams:
 
 - [`load_diagram(plantuml_code: str) -> bool`](#load-diagram): loads the PlantUML code and updates all the diagrams. It returns `True` if successful and `False` otherwise, e.g. when the PlantUML code is invalid.
+- [`validate_plantuml_code(plantuml_code: str) -> bool`](#validate-plantuml-code): validates the PlantUML code. It returns `True` if the PlantUML code is valid and `False` otherwise.
 
 The following method is used to get the element at the given coordinates:
 
@@ -193,9 +199,9 @@ The following method is used to delete elements from the diagram:
 
 The following methods are used to manage the history:
 
-- [`add_history(plantuml_code: str)`](#add-to-history): adds a new entry to the history. It will also increment the `current_index` and remove any future entries in the history, i.e. the history will only contain the current entry and all previous entries.
-- [`undo() -> str | None`](#undo): undoes the last action, by decrementing the `current_index` and returning the string at the new `current_index` or `None` if the `current_index` is 0 (the first action in the history).
-- [`redo() -> str | None`](#redo): redoes the last action, by incrementing the `current_index` and returning the string at the new `current_index` or `None` if the `current_index` is equal to the length of the history (the last action in the history).
+- [`add_history(plantuml_code: str)`](#add-a-new-entry-to-the-history): adds a new entry to the history. It will also increment the `current_index` and remove any future entries in the history, i.e. the history will only contain the current entry and all previous entries.
+- [`undo() -> str | None`](#undo-the-last-action): undoes the last action, by decrementing the `current_index` and returning the string at the new `current_index` or `None` if the `current_index` is 0 (the first action in the history).
+- [`redo() -> str | None`](#redo-the-last-action): redoes the last action, by incrementing the `current_index` and returning the string at the new `current_index` or `None` if the `current_index` is equal to the length of the history (the last action in the history).
 
 To generate a complete PlantUML code, the following methods are used:
 
@@ -476,7 +482,7 @@ return transitions
 
 ## Load diagram
 
-The following method is used to load the diagram:
+The following method is used to load the diagram given a PlantUML code:
 
 ```python
 def load_diagram(plantuml_code: str) -> bool:
@@ -489,17 +495,101 @@ if not self.validate_plantuml_code(plantuml_code):
     return False
 ```
 
-TODO
+When the PlantUML code is valid, it can be loaded into the `state_diagram`. If this is not successful, the method will exit as well.
 
+```python
+if not self.state_diagram.load_diagram(plantuml_code):
+    return False
+```
 
+When the PlantUML code is loaded successfully, the `set_elements()` method is called to set the elements of the diagram.
 
-the `set_elements()` method is called to set the elements of the diagram.
+```python
+self.set_elements()
+```
+
+With the elements set, the PlantUML code can be determined for the other diagrams and set via the `load_diagram()` method which also checks if the PlantUML code is valid. If either one of the PlantUML codes is not valid, the method will exit and return `False`.
+
+```python
+if not self.selection_mask_diagram.load_diagram(self.get_plantuml_code(CodeType.SELECTION_MASK)):
+    return False
+if not self.selection_indication_diagram.load_diagram(self.get_plantuml_code(CodeType.SELECTION_INDICATION)):
+    return False
+```
+
+Finally, `True` is returned to indicate that the diagram was loaded successfully.
+
+```python
+return True
+```
+
+## Validate PlantUML code
+
+To validate the PlantUML code, the following method is used:
+
+```python
+def validate_plantuml_code(plantuml_code: str) -> bool:
+```
+
+The first step is to create a temporary diagram and load the PlantUML code into it. If this is not successful, `False` is returned.
+
+```python
+diagram = Diagram()
+if not diagram.load_diagram(plantuml_code):
+    return False
+```
+
+This checks that the PlantUML code contains valid PlantUML code. However, it does not check whether it contains a correctly formatted state diagram, i.e. whether it contains all the sections and whether they are in the correct order.
+
+The following code is used to check whether the PlantUML code contains all the sections and whether they are in the correct order:
+
+```python
+previous_index = -1
+for section in SECTIONS:
+    index = plantuml_code.find(section)
+    if index == -1 or index < previous_index:
+        return False
+    previous_index = index
+```
+
+Finally, `True` is returned to indicate that the PlantUML code is valid.
+
+```python
+return True
+```
 
 ## Get an element at given coordinates
 
 The following method is used to get the element at the given coordinates:
 
-- `get_element_at(x: int, y: int) -> Element | None`: returns the element at the given coordinates or `None` if no element is at the given coordinates.
+```python
+def get_element_at(x: int, y: int) -> Element | None:
+```
+
+To retrieve the element at the given coordinates, the color of the pixel at the given coordinates is retrieved from the `selection_mask_diagram`.
+
+```python
+rgb_color = self.selection_mask_diagram.rendered_image.getpixel((x, y))  
+```
+
+If the image has an alpha channel (RGBA), the result will be a 4-tuple (R, G, B, A). In that case, the alpha value can be ignored:
+
+```python
+if len(rgb_color) == 4:
+    rgb_color = rgb_color[:3]
+```
+
+The RGB tuple can then be converted to a value to be used as an index for the `elements` list.
+
+```python
+index = rgb_color[0] * 256 * 256 + rgb_color[1] * 256 + rgb_color[2]
+```
+
+The element at the given index is then returned only if the index is valid.
+
+```python
+return self.elements[index] if 0 <= index < len(self.elements) else None
+```
 
 ## Add a new interface
 

@@ -47,21 +47,19 @@ class Diagram:
     def __init__(self):
         self.plantuml_client = PlantUML(PLANTUML_ENDPOINT)
         self.plantuml_code = DEFAULT_PLANTUML_CODE
-        self.rendered_image = self.plantuml_client.processes(self.plantuml_code)
-
+        self.rendered_image = self.render_image(self.plantuml_code)
     # -------------------------------------------------------------------------
-    def get_rendered_image(self, code: str) -> ImageTk.PhotoImage | None:
+    def render_image(self, code: str) -> Image.Image | None:
         try:
             raw_image_data = self.plantuml_client.processes(code)
-            image = Image.open(io.BytesIO(raw_image_data))
-            return ImageTk.PhotoImage(image)
+            return Image.open(io.BytesIO(raw_image_data))
         except Exception as e:
             print(f"Error rendering image: {e}")
             return None
         
     # -------------------------------------------------------------------------
     def set_plantuml_code(self, code: str) -> bool:
-        temp_rendered_image = self.get_rendered_image(code)
+        temp_rendered_image = self.render_image(code)
         if not temp_rendered_image:
             return False
         self.plantuml_code = code
