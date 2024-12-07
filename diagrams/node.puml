@@ -22,7 +22,7 @@ skinparam State {
 !$RTx_DisconnectInd = $RTx + ":" + DisconnectInd
 
 '== Component ==
-state component as "Node" {
+state component as "Component Name" {
 state START <<start>> #000000
 
 '== States ==

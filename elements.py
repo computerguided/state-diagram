@@ -63,17 +63,20 @@ class Message(Element):
         self.interface = interface
 
     def get_plantuml_code(self, code_type: CodeType = CodeType.STANDARD) -> str:
-        return f"!{self.get_variable_name()} = {self.interface} + \":\" + {self.name}"
+        if self.interface:
+            return f"!{self.get_variable_name()} = {self.interface} + \":\" + {self.name}"
+        return f"!{self.get_variable_name()} = {self.name}"
 
     def get_variable_name(self) -> str:
         if self.interface:
-            return f"{self.interface}_{self.name}"
+            return f"${self.interface}_{self.name}"
         return f"${self.name}"
 
     @classmethod
     def from_plantuml_code(cls, plantuml_code: str):
         name = plantuml_code[plantuml_code.rfind("+") + 1:].strip()
-        interface = plantuml_code[:plantuml_code.rfind("+")].strip()
+        interface = plantuml_code[:plantuml_code.rfind("_")].strip()
+        interface = interface[2:]
         identifier = 0
         return cls(identifier, name, interface)
 
@@ -132,9 +135,10 @@ class ChoicePoint(Element):
 
     @classmethod
     def from_plantuml_code(cls, plantuml_code: str):
-        match = re.search(r'state\s+(\w+)', plantuml_code)
-        name = match.group(1)[3:] if match else None
-        question = plantuml_code[plantuml_code.find("as") + 3:plantuml_code.find('"')].strip()
+        match = re.search(r'state\s+CP_(\w+)', plantuml_code)
+        name = match.group(1) if match else None
+        question_match = re.search(r'as\s+"([^"]+)"', plantuml_code)
+        question = question_match.group(1) if question_match else None
         identifier = 0
         return cls(identifier, name, question)
 
@@ -156,7 +160,7 @@ class Transition(Element):
             case CodeType.SELECTED:
                 arrow_code_type = "[#FF0000,bold]"
             case CodeType.MASKED:
-                arrow_code_type = f"[#0000{self.identifier:02X},0000{self.identifier:02X},thickness=8]"
+                arrow_code_type = f"[#0000{self.identifier:02X},thickness=8]"
 
         connector_code = ""
         match self.connector_type:
@@ -171,7 +175,7 @@ class Transition(Element):
 
         if self.connector_type in [ConnectorType.UP, ConnectorType.DOWN]:
             for _ in range(self.connector_length - 1):
-                connector_code += "-"
+                connector_code = "-" + connector_code
 
         transition_code = f"{self.source_state} {connector_code} {self.target_state}"
 
@@ -179,6 +183,7 @@ class Transition(Element):
             transition_code += " : "
             for message in self.messages:
                 transition_code += f"{message}\\n"
+            transition_code = transition_code[:-2]
         return transition_code
 
     def get_variable_name(self) -> str:

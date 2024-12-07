@@ -1,8 +1,20 @@
 # PlantUMLManager
 
-_The `PlantUMLManager` class is responsible for loading and saving the PlantUML code, creating the selection mask and updating the diagram canvas with the new selection mask._
+_The `PlantUMLManager` class is responsible for starting the local PlantUML server, loading and saving the PlantUML code, creating the selection mask and updating the diagram canvas with the new selection indication._
 
 ## Dependencies
+
+Running the PlantUML server locally is done by executing a Java command. To be able to execute this command but also properly halt the process, the following dependencies are required:
+
+- `atexit` : for registering a cleanup function that will be called when the program exits.
+- `subprocess` : for executing the Java command in the background.
+
+```python
+import atexit
+import subprocess
+```
+
+## Proprietary dependencies
 
 The `PlantUMLManager` class depends on the `Diagram` class and the `Element` classes.
 
@@ -12,6 +24,14 @@ from elements import Interface, Message, State, ChoicePoint, Transition, CodeTyp
 ```
 
 ## Constants
+
+The `PlantUMLManager` class has the following constants:
+
+- `PLANTUML_PORT`: an integer representing the port number on which the local PlantUML server listens.
+
+```python
+PLANTUML_PORT = 9000
+```
 
 For checking and parsing the PlantUML code, the `PlantUMLManager` class has the following constants:
 
@@ -42,12 +62,29 @@ skinparam State {
 """
 ```
 
+- `HEADER_MASKED_PLANTUML_CODE`: a string containing the PlantUML code for the header with masked font colors.
+
+```python
+HEADER_MASKED_PLANTUML_CODE = """@startuml
+'== Formatting ==
+hide empty description
+skinparam Arrow {
+  FontSize 9
+  FontColor #00000000
+}
+skinparam State {
+  FontSize 12
+  FontColor #00000000
+}
+"""
+```
+
 - `DEFAULT_MESSAGES_PLANTUML_CODE`: a string containing the PlantUML code for the default messages.
 
 ```python
 DEFAULT_MESSAGES_PLANTUML_CODE = """
 '== Default messages ==
-!$Timeout = "Timeout"
+!$Timeout = Timeout
 !$No = No
 !$Yes = Yes
 """
@@ -56,70 +93,65 @@ DEFAULT_MESSAGES_PLANTUML_CODE = """
 - `INTERFACES_PLANTUML_CODE`: a string containing the PlantUML code for the interfaces.
 
 ```python
-INTERFACES_PLANTUML_CODE = """
-'== Interfaces ==
+INTERFACES_PLANTUML_CODE = """'== Interfaces ==
 """
 ```
 
 - `MESSAGES_PLANTUML_CODE`: a string containing the PlantUML code for the messages.
 
 ```python
-MESSAGES_PLANTUML_CODE = """
-'== Messages ==
+MESSAGES_PLANTUML_CODE = """'== Messages ==
 """
 ```
 
 - `COMPONENT_PLANTUML_CODE`: a string containing the PlantUML code for the component.
 
 ```python
-START_STATE_PLANTUML_CODE = """
-'== Start state ==
-state START <<start>>
+COMPONENT_PLANTUML_CODE = """'== Component ==
 """
 ```
 
 - `STATES_PLANTUML_CODE`: a string containing the PlantUML code for the states.
 
 ```python
-STATES_PLANTUML_CODE = """
-'== States ==
+STATES_PLANTUML_CODE = """'== States ==
 """
 ```
 
 - `CHOICE_POINTS_PLANTUML_CODE`: a string containing the PlantUML code for the choice-points.
 
 ```python
-CHOICE_POINTS_PLANTUML_CODE = """
-'== Choice-points ==
+CHOICE_POINTS_PLANTUML_CODE = """'== Choice-points ==
 """
 ```
 
 - `TRANSITIONS_PLANTUML_CODE`: a string containing the PlantUML code for the transitions.
 
 ```python
-TRANSITIONS_PLANTUML_CODE = """
-'== Transitions ==
+TRANSITIONS_PLANTUML_CODE = """'== Transitions ==
 """
 ```
 
 - `FOOTER_PLANTUML_CODE`: a string containing the PlantUML code for the footer.
 
 ```python
-FOOTER_PLANTUML_CODE = """
-'== Footer ==
+FOOTER_PLANTUML_CODE = """'== Footer ==
 @enduml"""
 ```
 
 - `SECTIONS`: a list of the section indicators.
 
 ```python
-SECTIONS = [HEADER_PLANTUML_CODE, DEFAULT_MESSAGES_PLANTUML_CODE, INTERFACES_PLANTUML_CODE, MESSAGES_PLANTUML_CODE, START_STATE_PLANTUML_CODE, STATES_PLANTUML_CODE, CHOICE_POINTS_PLANTUML_CODE, TRANSITIONS_PLANTUML_CODE, FOOTER_PLANTUML_CODE]
+SECTIONS = [HEADER_PLANTUML_CODE, DEFAULT_MESSAGES_PLANTUML_CODE, INTERFACES_PLANTUML_CODE, MESSAGES_PLANTUML_CODE, COMPONENT_PLANTUML_CODE, STATES_PLANTUML_CODE, CHOICE_POINTS_PLANTUML_CODE, TRANSITIONS_PLANTUML_CODE, FOOTER_PLANTUML_CODE]
 ```
 
 ## Attributes
 
 The class has the following attributes:
 
+- `process`: a `subprocess.Popen` object representing the local PlantUML server.
+- `plantuml_endpoint`: a string representing the endpoint of the local PlantUML server.
+- `component_name`: a string representing the name of the component.
 - `state_diagram`: a `Diagram` object containing the PlantUML code and rendered image of the state diagram.
 - `selection_mask_diagram`: a `Diagram` object containing the PlantUML code and rendered image of the selection mask.
 - `selection_indication_diagram`: a `Diagram` object containing the PlantUML code and rendered image of the selection indication.
@@ -141,8 +173,63 @@ The constructor of the class takes no arguments.
 def __init__(self):
 ```
 
+The first step is to start the local PlantUML server by executing the Java command in the background. This is done in the [`start_plantuml_server()`](#start-the-local-plantuml-server) method which returns the `subprocess.Popen` object representing the local PlantUML server.
+
+```python
+self.process = self.start_plantuml_server(PLANTUML_PORT)
+```
+
+Then the PlantUML endpoint is set, which will be used by the `Diagram` objects to generate the PlantUML code and rendered images.
+
+```python
+self.plantuml_endpoint = f"http://localhost:{PLANTUML_PORT}/png/"
+```
+
+Next the attributes are initialized with the default values, starting with the component name which is given the value "Component Name".
+
+```python
+self.component_name = "Component Name"
+```
+
+Next the `Diagram` objects are initialized with the PlantUML endpoint.
+
+```python
+self.state_diagram = Diagram(self.plantuml_endpoint)
+self.selection_mask_diagram = Diagram(self.plantuml_endpoint)
+self.selection_indication_diagram = Diagram(self.plantuml_endpoint)
+```
+
+Next the lists of elements are initialized that are all still empty:
+
+```python 
+self.interfaces = []
+self.messages = []
+self.states = []
+self.choice_points = []
+self.transitions = []
+self.elements = []
+```
+
+To keep track of the selected elements, the `selected_element_identifiers` list is initialized as empty:
+
+```python
+self.selected_element_identifiers = []
+```
+
+Finally, to keep track of the history, the `history` list is initialized as empty and the `current_history_index` is set to 0:
+
+```python
+self.history = []
+self.current_history_index = 0
+```
+
 ## Methods
-The class has the following methods:
+
+To start the local PlantUML server, the following methods are used:
+
+- [`start_plantuml_server()`](#start-the-local-plantuml-server): starts the local PlantUML server.
+- [`cleanup()`](#cleanup-function): terminates the local PlantUML server when the program exits.
+When the PlantUML code is loaded, the following methods can be used:
 
 - [`set_elements()`](#set-elements): sets the all the list.
 
@@ -150,6 +237,7 @@ To retrieve the specific elements from the PlantUML code, the following method i
 
 - [`get_interfaces_from_plantuml_code(plantuml_code: str) -> List[Interface]`](#get-interfaces-from-plantuml-code): returns the interfaces from the PlantUML code.
 - [`get_messages_from_plantuml_code(plantuml_code: str) -> List[Message]`](#get-messages-from-plantuml-code): returns the messages from the PlantUML code.
+- [`get_component_from_plantuml_code(plantuml_code: str) -> str`](#get-component-from-plantuml-code): returns the component name from the PlantUML code.
 - [`get_states_from_plantuml_code(plantuml_code: str) -> List[State]`](#get-states-from-plantuml-code): returns the states from the PlantUML code.
 - [`get_choice_points_from_plantuml_code(plantuml_code: str) -> List[ChoicePoint]`](#get-choice-points-from-plantuml-code): returns the choice-points from the PlantUML code.
 - [`get_transitions_from_plantuml_code(plantuml_code: str) -> List[Transition]`](#get-transitions-from-plantuml-code): returns the transitions from the PlantUML code.
@@ -218,6 +306,75 @@ To support the PlantUML generation, the following methods are used:
 
 In the following sections, the methods are described in more detail.
 
+## Start the local PlantUML server
+
+To start the local PlantUML server, the following method is used:
+
+```python
+def start_plantuml_server(self, port: int) -> subprocess.Popen:
+```
+
+The first step is to define the command to run:
+
+```python
+command = ["java", "-jar", "plantuml.jar", f"-picoweb:{port}"]
+```
+
+Next the command is executed in the background and the process is stored in the `process` attribute to be able to terminate it when the program exits:
+
+```python
+process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+```
+
+When the program exits, the `atexit.register()` function is used to register the [`cleanup()`](#cleanup-function) method to be called when the program exits:
+
+```python
+atexit.register(self.cleanup)
+```
+
+To allow the process to start, the program waits for 1 second:
+
+```python
+time.sleep(1)
+```
+
+Finally, the process is returned.
+
+```python
+return process
+```
+
+## Cleanup function
+
+When the program exits, the following cleanup method is called to terminate the process:
+
+```python
+def cleanup():
+```
+
+This method first checks if the process is still running. This can be done by calling the `poll()` method of the process, which returns `None` for a running process.
+
+```python
+if not self.process.poll() is None:
+    return
+```
+
+If the process is still running, it terminates the process gracefully by calling the `terminate()` method of the process:
+
+```python
+self.process.terminate()
+``` 
+
+This is a non-blocking call, so the program continues immediately. The process is then waited for to exit within a timeout period using the `wait()` method of the process. If the process does not exit within the timeout period, it forcefully kills the process by calling the `kill()` method of the process.
+
+```python
+try:
+    self.process.wait(timeout=5)
+except subprocess.TimeoutExpired:
+    print("Forcing process kill...")
+self.process.kill()
+```
+
 ## Set elements
 
 When the `state_diagram` is loaded, the `set_elements()` method is called which sets the all the lists of elements.
@@ -257,6 +414,7 @@ With this set, all the lists are populated with the elements from the PlantUML c
 ```python
 self.interfaces += get_interfaces_from_plantuml_code(self.state_diagram.plantuml_code)
 self.messages += get_messages_from_plantuml_code(self.state_diagram.plantuml_code)
+self.component_name = get_component_from_plantuml_code(self.state_diagram.plantuml_code)
 self.states += get_states_from_plantuml_code(self.state_diagram.plantuml_code)
 self.choice_points += get_choice_points_from_plantuml_code(self.state_diagram.plantuml_code)
 self.transitions += get_transitions_from_plantuml_code(self.state_diagram.plantuml_code)
@@ -355,6 +513,39 @@ for line in lines:
     messages.append(message)
 return messages
 ```
+
+## Get component from PlantUML code
+
+To retrieve the component name from the PlantUML code, the following method is used:
+
+```python
+def get_component_from_plantuml_code(plantuml_code: str) -> str:
+```
+
+The first step is to find the location of the "Component" section in the PlantUML code. This is done by finding the index of the line containing `COMPONENT_PLANTUML_CODE`:
+
+```python
+component_index = plantuml_code.find(COMPONENT_PLANTUML_CODE)
+```
+
+The component name is part of the line after the "Component" section. The following code is used to extract the next line after the "Component" section:
+
+```python
+component_name_line = plantuml_code[component_index+len(COMPONENT_PLANTUML_CODE):].split("\n")[0]
+```
+
+The component name can contain spaces, so multiple words, so it is retrieved between the first and second quote:
+
+```python
+component_name = component_name_line.split('"')[1]
+```
+
+Finally, the component name is returned.
+
+```python
+return component_name
+```
+
 
 ## Get states from PlantUML code
 
@@ -498,7 +689,7 @@ if not self.validate_plantuml_code(plantuml_code):
 When the PlantUML code is valid, it can be loaded into the `state_diagram`. If this is not successful, the method will exit as well.
 
 ```python
-if not self.state_diagram.load_diagram(plantuml_code):
+if not self.state_diagram.set_plantuml_code(plantuml_code):
     return False
 ```
 
@@ -511,9 +702,9 @@ self.set_elements()
 With the elements set, the PlantUML code can be determined for the other diagrams and set via the `load_diagram()` method which also checks if the PlantUML code is valid. If either one of the PlantUML codes is not valid, the method will exit and return `False`.
 
 ```python
-if not self.selection_mask_diagram.load_diagram(self.get_plantuml_code(CodeType.SELECTION_MASK)):
+if not self.selection_mask_diagram.set_plantuml_code(self.get_plantuml_code(CodeType.SELECTION_MASK)):
     return False
-if not self.selection_indication_diagram.load_diagram(self.get_plantuml_code(CodeType.SELECTION_INDICATION)):
+if not self.selection_indication_diagram.set_plantuml_code(self.get_plantuml_code(CodeType.SELECTION_INDICATION)):
     return False
 ```
 

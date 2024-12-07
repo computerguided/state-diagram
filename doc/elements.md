@@ -496,23 +496,24 @@ To set the attributes of the choice-point from the PlantUML code, the following 
 def from_plantuml_code(cls, plantuml_code: str):
 ```
 
-The method first extracts the name of the choice-point which is the first word after the `state` keyword.
+An example of the code that needs to be set is:
+
+```
+state CP_Whitelisted as "Is Server\nWhitelisted?"
+```
+
+The method first creates a match with the regex `r'state\s+CP_(\w+)'` to capture the name after `CP_` in the state declaration.
 
 ```python
-match = re.search(r'state\s+(\w+)', plantuml_code)
+match = re.search(r'state\s+CP_(\w+)', plantuml_code)
 name = match.group(1) if match else None
 ```
 
-For a choice-point the "CP_" prefix is added to the name and therefor this needs to be removed.
+Next, to extract the question, the method creates a match with the regex `r'as\s+"([^"]+)"'` to capture the text after `as` and between quotes.
 
 ```python
-name = name[3:]
-```
-
-The question is the text after the `as` keyword and between the quotes.
-
-```python
-question = plantuml_code[plantuml_code.find("as") + 3:plantuml_code.find('"')].strip()
+question_match = re.search(r'as\s+"([^"]+)"', plantuml_code)
+question = question_match.group(1) if question_match else None
 ```
 
 The identifier is set to default value of `0` as this is not used for a choice-point.
