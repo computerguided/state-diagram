@@ -246,16 +246,23 @@ To set the attributes of the message from the PlantUML code, the following metho
 def from_plantuml_code(cls, plantuml_code: str):
 ```
 
-The method finds the index of the last `+` character and then sets the `name` attribute to the part after the last `+` character.
+An example of the code that needs to be set is:
 
-```python
-name = plantuml_code[plantuml_code.rfind("+") + 1:].strip()
+```
+!$RTx_ConnectReq = $RTx + ":" + ConnectReq
 ```
 
-The interface is set to the part before the last `+` character.
+The method finds the index of the last `_` character and then sets the `name` attribute to the part after the last `_` character and before the `=` character.
 
 ```python
-interface = plantuml_code[:plantuml_code.rfind("+")].strip()
+name = plantuml_code[plantuml_code.rfind("_") + 1:plantuml_code.find("=")].strip()
+```
+
+The interface is set to the part before the last `_` character and then the `!$` is removed.
+
+```python
+interface = plantuml_code[:plantuml_code.rfind("_")].strip()
+interface = interface[2:]
 ```
 
 The identifier is set to default value of `0` as this is not used for a message.

@@ -74,7 +74,7 @@ class Message(Element):
 
     @classmethod
     def from_plantuml_code(cls, plantuml_code: str):
-        name = plantuml_code[plantuml_code.rfind("+") + 1:].strip()
+        name = plantuml_code[plantuml_code.rfind("_") + 1:plantuml_code.find("=")].strip()
         interface = plantuml_code[:plantuml_code.rfind("_")].strip()
         interface = interface[2:]
         identifier = 0

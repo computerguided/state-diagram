@@ -2,6 +2,10 @@
 
 
 
+https://plantuml.com/starting
+
+
+
 
 ## Dependencies
 
@@ -44,3 +48,19 @@ https://plantuml.com/picoweb
 ```bash
 java -jar plantuml.jar -picoweb:9000
 ```
+
+
+## Docker image
+
+```bash
+docker pull plantuml/plantuml-server:jetty
+```
+
+```bash
+docker run -d -p 8080:9000 plantuml/plantuml-server:jetty
+```
+
+
+
+
+

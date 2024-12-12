@@ -1,0 +1,36 @@
+@startuml
+'== Formatting ==
+hide empty description
+skinparam Arrow {
+  FontSize 9
+}
+skinparam State {
+  FontSize 12
+}
+
+'== Default interfaces ==
+!$Logical = Logical
+!$Timer = Timer
+
+'== Default messages ==
+!$Timer_Timeout = Timeout
+!$Logical_No = No
+!$Logical_Yes = Yes
+
+'== Interfaces ==
+
+'== Messages ==
+
+'== Component ==
+state component as "Component Name" {
+state START <<start>> #000000
+
+'== States ==
+
+'== Choice-points ==
+
+'== Transitions ==
+
+'== Footer ==
+}
+@enduml

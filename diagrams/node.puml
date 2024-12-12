@@ -8,10 +8,14 @@ skinparam State {
   FontSize 12
 }
 
+'== Default interfaces ==
+!$Logical = Logical
+!$Timer = Timer
+
 '== Default messages ==
-!$Timeout = Timeout
-!$No = No
-!$Yes = Yes
+!$Timer_Timeout = Timeout
+!$Logical_No = No
+!$Logical_Yes = Yes
 
 '== Interfaces ==
 !$RTx = RTx
@@ -37,7 +41,7 @@ state CP_Whitelisted as "Is Server\nWhitelisted?"
 START --> Advertising
 Advertising --> Advertising : $Timeout
 Advertising --> CP_Whitelisted : $RTx_ConnectReq\n$RTx_ConnectedInd
-CP_Whitelisted --> Connecting : $Yes
+CP_Whitelisted -> Connecting : $Yes
 CP_Whitelisted -up--> Advertising : $No
 Connecting --> Advertising : $Timeout
 Connecting -> ServerConnected : $RTx_ConnectedInd

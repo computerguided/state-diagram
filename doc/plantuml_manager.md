@@ -145,11 +145,24 @@ FOOTER_PLANTUML_CODE = """'== Footer ==
 SECTIONS = [HEADER_PLANTUML_CODE, DEFAULT_MESSAGES_PLANTUML_CODE, INTERFACES_PLANTUML_CODE, MESSAGES_PLANTUML_CODE, COMPONENT_PLANTUML_CODE, STATES_PLANTUML_CODE, CHOICE_POINTS_PLANTUML_CODE, TRANSITIONS_PLANTUML_CODE, FOOTER_PLANTUML_CODE]
 ```
 
+## Enums
+
+The class has the following enums:
+
+- `EditActionType`: an enum containing the types of the edit actions in order to determine which diagram(s) to update.
+
+```python
+class EditActionType(Enum):
+    NON_VISUAL = "non_visual"
+    VISUAL = "visual"
+    SELECTION = "selection"
+```
+
 ## Attributes
 
 The class has the following attributes:
 
-- `process`: a `subprocess.Popen` object representing the local PlantUML server.
+- `process`: a `subprocess.Popen` object representing the process that runs the local PlantUML server.
 - `plantuml_endpoint`: a string representing the endpoint of the local PlantUML server.
 - `component_name`: a string representing the name of the component.
 - `state_diagram`: a `Diagram` object containing the PlantUML code and rendered image of the state diagram.
@@ -216,11 +229,12 @@ To keep track of the selected elements, the `selected_element_identifiers` list 
 self.selected_element_identifiers = []
 ```
 
-Finally, to keep track of the history, the `history` list is initialized as empty and the `current_history_index` is set to 0:
+Finally, to keep track of the history, the `history` list is initialized with the default PlantUML code and the `current_history_index` is set to 0 and the first entry is added to the history:
 
 ```python
 self.history = []
 self.current_history_index = 0
+self.add_history(self.get_plantuml_code(CodeType.STANDARD))
 ```
 
 ## Methods
@@ -246,6 +260,7 @@ The following method is used to load the PlantUML code and update all the diagra
 
 - [`load_diagram(plantuml_code: str) -> bool`](#load-diagram): loads the PlantUML code and updates all the diagrams. It returns `True` if successful and `False` otherwise, e.g. when the PlantUML code is invalid.
 - [`validate_plantuml_code(plantuml_code: str) -> bool`](#validate-plantuml-code): validates the PlantUML code. It returns `True` if the PlantUML code is valid and `False` otherwise.
+- [`update_diagrams(action: EditActionType)`](#update-diagrams): depending on the action, updates one or more of the `state_diagram`, `selection_mask_diagram` and `selection_indication_diagram`, using the current PlantUML code.
 
 The following method is used to get the element at the given coordinates:
 
@@ -747,6 +762,59 @@ Finally, `True` is returned to indicate that the PlantUML code is valid.
 
 ```python
 return True
+```
+
+## Update diagrams
+
+The following method is used to update one or more diagrams:
+
+```python
+def update_diagrams(action: EditActionType) -> None:
+```
+
+The first step is to retrieve the PlantUML code for the `state_diagram` and add it to the history.
+
+```python
+standard_plantuml_code = self.get_plantuml_code(CodeType.STANDARD)
+self.add_history_plantuml_code(standard_plantuml_code)
+```
+
+The action is used to determine which diagram(s) to update as given in the following table:
+
+| Action | Diagram |
+|--------|---------|
+| `EditActionType.NON_VISUAL` | none |
+| `EditActionType.VISUAL` | `state_diagram`, `selection_mask_diagram` and `selection_indication_diagram` |
+| `EditActionType.SELECTION` | `selection_indication_diagram` |
+
+So, when the action is `EditActionType.NON_VISUAL`, the method can return immediately.
+
+```python
+if action == EditActionType.NON_VISUAL:
+    return
+```
+
+The `selection_indication_diagram` is updated always and therefore the PlantUML code for that type is retrieved and used to update the `selection_indication_diagram`. We can assume that the PlantUML code for the selection indication is always valid.
+
+```python
+plantuml_code = self.get_plantuml_code(CodeType.SELECTION_INDICATION)
+self.selection_indication_diagram.set_plantuml_code(plantuml_code)
+```
+
+When the action was a selection or non-visual, the other diagrams are not updated and thus the PlantUML code for those types is not retrieved.
+
+```python
+if action == EditActionType.SELECTION or action == EditActionType.NON_VISUAL:
+    return
+```
+
+When the action was a visual change, additionally the PlantUML code is retrieved for the `state_diagram` and `selection_mask_diagram` and used to update these diagrams.
+
+```python
+plantuml_code = self.get_plantuml_code(CodeType.STANDARD)
+self.state_diagram.set_plantuml_code(plantuml_code)
+plantuml_code = self.get_plantuml_code(CodeType.MASKED)
+self.selection_mask_diagram.set_plantuml_code(plantuml_code)
 ```
 
 ## Get an element at given coordinates
