@@ -1,7 +1,7 @@
 from plantuml import PlantUML
 from PIL import Image
 import io
-import time
+
 # Constants
 DEFAULT_PLANTUML_CODE = """
 @startuml
@@ -13,7 +13,7 @@ DEFAULT_PLANTUML_CODE = """
 # -----------------------------------------------------------------------------
 class Diagram:
     def __init__(self, plantuml_endpoint: str):
-        self.plantuml_client = PlantUML(plantuml_endpoint)
+        self.plantuml_client = PlantUML(url=plantuml_endpoint)
         self.plantuml_code = DEFAULT_PLANTUML_CODE
         self.rendered_image = self.render_image(self.plantuml_code)
     # -------------------------------------------------------------------------
