@@ -109,7 +109,6 @@ while not succeeded:
             print("PlantUML server is busy, retrying...")
         else:
             print(f"ERROR: failed rendering image: {e}\nCode: {code}")
-            print(f"Unknown error {e.args[0]}, failing...")
             return None
 ```
 

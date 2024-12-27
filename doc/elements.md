@@ -4,9 +4,17 @@ _This module contains the classes representing the elements of the diagram._
 
 ## Imports
 
+The following imports are used:
+
+- `Enum`: to define enums.
+- `re`: to use regular expressions.
+- `Optional`: to indicate that a variable may be `None`.
+- `List`: to indicate that a variable is a list.
+
 ```python
 from enum import Enum
 import re
+from typing import Optional, List
 ```
 
 ## Overview
@@ -19,6 +27,8 @@ The following elements are defined:
 - [`State`](#state)
 - [`ChoicePoint`](#choice-point)
 - [`Transition`](#transition)
+
+in the following sections, the classes are described in detail.
 
 ## Enums
 
@@ -71,10 +81,10 @@ The `Element` class has the following attributes:
 
 ### Constructor
 
-The constructor of the class takes no arguments.
+The constructor of the class takes the type of the element and the optional identifier as arguments.
 
 ```python
-def __init__(self, element_type: ElementType, identifier: int):
+def __init__(self, element_type: ElementType, identifier: int = 0):
 ```
 
 ### Methods
@@ -98,7 +108,7 @@ It has the following additional attributes:
 The constructor of the class takes the following arguments:
 
 ```python
-    def __init__(self, identifier: int, name: str):
+    def __init__(self, name: str, identifier: int = 0):
         super().__init__(ElementType.INTERFACE, identifier)
         self.name = name
 ```

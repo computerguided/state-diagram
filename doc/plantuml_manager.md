@@ -319,6 +319,13 @@ To support the PlantUML generation, the following methods are used:
 - [`get_choice_points_plantuml_code(code_type: CodeType)`](#get-choice-points-plantuml-code): returns the PlantUML code for the choice-points.
 - [`get_transitions_plantuml_code(code_type: CodeType)`](#get-transitions-plantuml-code): returns the PlantUML code for the transitions.
 
+The following methods are used to retrieve an element given a string:
+- [`get_interface(name: str) -> Interface | None`](#get-an-interface-given-a-string): returns the interface with the given name or `None` if no interface with that name exists.
+- [`get_message(name: str) -> Message | None`](#get-a-message-given-a-string): returns the message with the given name or `None` if no message with that name exists.
+- [`get_state(name: str) -> State | None`](#get-a-state-given-a-string): returns the state with the given name or `None` if no state with that name exists.
+- [`get_choice_point(question: str) -> ChoicePoint | None`](#get-a-choice-point-given-a-string): returns the choice-point with the given question or `None` if no choice-point with that question exists.
+- [`get_transition(source_name: str, target_name: str, message : str = None) -> Transition | None`](#get-a-transition): returns the transition with the given source and target names - and if the message is not `None`, also the message is checked - or `None` if no transition was found.
+
 In the following sections, the methods are described in more detail.
 
 ## Start the local PlantUML server
@@ -1482,3 +1489,95 @@ for transition in transitions:
     plantuml_code += f"{transition.get_plantuml_code(transition_code_type)}\n"
 return plantuml_code
 ``` 
+
+## Get an interface given a string
+
+The `get_interface()` method returns the interface with the given name.
+
+```python
+get_interface(name: str) -> Interface | None
+```
+
+The method iterates over all interfaces and returns the interface with the given name. If no interface with the given name exists, `None` is returned.
+
+```python
+for interface in interfaces:
+    if interface.name == name:
+        return interface
+return None
+```
+
+## Get a message given a string
+
+The `get_message()` method returns the message with the given name.
+
+```python
+get_message(name: str) -> Message | None
+```
+
+The method iterates over all messages and returns the message with the given name. If no message with the given name exists, `None` is returned.
+
+```python
+for message in messages:
+    if message.name == name:
+        return message
+return None
+```
+
+## Get a state given a string
+
+The `get_state()` method returns the state with the given name.
+
+```python
+get_state(name: str) -> State | None
+```
+
+The method iterates over all states and returns the state for which the `name` or `display_name` matches the given name. If no state with the given name or identifier exists, `None` is returned. The `display_name` is only checked if it is not an empty string.
+
+```python
+for state in states:
+    if state.display_name is not None and state.display_name == name:
+        return state
+    if state.name == name:
+        return state
+return None
+```
+
+## Get a choice-point given a string
+
+The `get_choice_point()` method returns the choice-point with the given question.
+
+```python
+get_choice_point(question: str) -> ChoicePoint | None
+```
+
+The method iterates over all choice-points and returns the choice-point for which the `question` matches the given question. If no choice-point with the given question exists, `None` is returned.
+
+```python
+for choice_point in choice_points:
+    if choice_point.question == question:
+        return choice_point
+return None
+```
+
+## Get a transition
+
+The `get_transition()` method returns the transition with the given source and target names and if the message is not `None`, also the message is checked.
+
+```python
+get_transition(source_name: str, target_name: str, message: str = None) -> Transition | None
+```
+
+The method iterates over all transitions and returns the transition for which the `source_name` and `target_name` match the given source and target names. If the message is not `None`, the message is also checked. If no transition with the given source and target names exists, `None` is returned.
+
+```python
+for transition in transitions:
+    if transition.source_name == source_name and transition.target_name == target_name:
+        if message is not None:
+            if transition.message == message:
+                return transition
+        else:
+            return transition
+return None
+```
+

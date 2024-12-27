@@ -1,8 +1,14 @@
+# --------------------------------------------------------------------------------------------------
+# Imports
+# --------------------------------------------------------------------------------------------------
 from enum import Enum
 import re
 from typing import Optional, List
 
+# --------------------------------------------------------------------------------------------------
 # Enums
+# --------------------------------------------------------------------------------------------------
+
 class ElementType(Enum):
     INTERFACE = "Interface"
     MESSAGE = "Message"
@@ -21,72 +27,108 @@ class CodeType(Enum):
     SELECTED = "Selected"
     MASKED = "Masked"
 
+# --------------------------------------------------------------------------------------------------
 # Base class
+# --------------------------------------------------------------------------------------------------
 class Element:
+
+    # ----------------------------------------------------------------------------------------------
     def __init__(self, element_type: ElementType, identifier: int):
         self.element_type = element_type
         self.identifier = identifier
 
+    # ----------------------------------------------------------------------------------------------
     def get_plantuml_code(self, code_type: CodeType = CodeType.STANDARD) -> str:
         raise NotImplementedError
 
+    # ----------------------------------------------------------------------------------------------
     def get_variable_name(self) -> str:
         raise NotImplementedError
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_string_representation(self) -> str:
+        raise NotImplementedError
 
+    # ----------------------------------------------------------------------------------------------
     @classmethod
     def from_plantuml_code(cls, plantuml_code: str):
         raise NotImplementedError
 
+# --------------------------------------------------------------------------------------------------
 # Interface class
+# --------------------------------------------------------------------------------------------------
 class Interface(Element):
-    def __init__(self, identifier: int, name: str):
+
+    # ----------------------------------------------------------------------------------------------
+    def __init__(self, name: str, identifier: int = 0):
         super().__init__(ElementType.INTERFACE, identifier)
         self.name = name
-
+    
+    # ----------------------------------------------------------------------------------------------
     def get_plantuml_code(self, code_type: CodeType = CodeType.STANDARD) -> str:
         return f"!{self.get_variable_name()} = {self.name}"
 
+    # ----------------------------------------------------------------------------------------------
     def get_variable_name(self) -> str:
         return f"${self.name}"
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_string_representation(self) -> str:
+        return f"{self.name}"
 
+    # ----------------------------------------------------------------------------------------------
     @classmethod
     def from_plantuml_code(cls, plantuml_code: str):
         name = plantuml_code.split("=")[1].strip()
-        identifier = 0
-        return cls(identifier, name)
+        return cls(name)
 
+# --------------------------------------------------------------------------------------------------
 # Message class
+# --------------------------------------------------------------------------------------------------
 class Message(Element):
-    def __init__(self, identifier: int, name: str, interface: Optional[str] = None):
+
+    # ----------------------------------------------------------------------------------------------
+    def __init__(self, name: str, interface: str, identifier: int = 0):
         super().__init__(ElementType.MESSAGE, identifier)
         self.name = name
         self.interface = interface
 
+    # ----------------------------------------------------------------------------------------------
     def get_plantuml_code(self, code_type: CodeType = CodeType.STANDARD) -> str:
         if self.interface:
             return f"!{self.get_variable_name()} = {self.interface} + \":\" + {self.name}"
         return f"!{self.get_variable_name()} = {self.name}"
 
+    # ----------------------------------------------------------------------------------------------
     def get_variable_name(self) -> str:
         if self.interface:
             return f"${self.interface}_{self.name}"
         return f"${self.name}"
 
+    # ----------------------------------------------------------------------------------------------
+    def get_string_representation(self) -> str:
+        return f"{self.name}"
+
+    # ----------------------------------------------------------------------------------------------
     @classmethod
     def from_plantuml_code(cls, plantuml_code: str):
         name = plantuml_code[plantuml_code.rfind("_") + 1:plantuml_code.find("=")].strip()
         interface = plantuml_code[:plantuml_code.rfind("_")].strip()
         interface = interface[2:]
-        identifier = 0
-        return cls(identifier, name, interface)
+        return cls(name, interface)
 
+# --------------------------------------------------------------------------------------------------
 # State class
+# --------------------------------------------------------------------------------------------------
 class State(Element):
-    def __init__(self, identifier: int, name: str, display_name: Optional[str] = None):
+
+    # ----------------------------------------------------------------------------------------------
+    def __init__(self, name: str, display_name: str = "", identifier: int = 0):
         super().__init__(ElementType.STATE, identifier)
         self.name = name
         self.display_name = display_name
 
+    # ----------------------------------------------------------------------------------------------
     def get_plantuml_code(self, code_type: CodeType = CodeType.STANDARD) -> str:
         standard_code = f"state {self.get_variable_name()}"
         if self.display_name:
@@ -99,25 +141,35 @@ class State(Element):
             case CodeType.MASKED:
                 return f"{standard_code} #0000{self.identifier:02X};line:0000{self.identifier:02X}"
 
+    # ----------------------------------------------------------------------------------------------
     def get_variable_name(self) -> str:
         return f"{self.name}"
 
+    # ----------------------------------------------------------------------------------------------
+    def get_string_representation(self) -> str:
+        return f"{self.display_name if self.display_name else self.name}"
+
+    # ----------------------------------------------------------------------------------------------
     @classmethod
     def from_plantuml_code(cls, plantuml_code: str):
         match = re.search(r'state\s+(\w+)', plantuml_code)
         name = match.group(1) if match else None
         display_match = re.search(r'as\s+"([^"]+)"', plantuml_code)
         display_name = display_match.group(1) if display_match else None
-        identifier = 0
-        return cls(identifier, name, display_name)
+        return cls(name, display_name)
 
+# --------------------------------------------------------------------------------------------------
 # ChoicePoint class
+# --------------------------------------------------------------------------------------------------
 class ChoicePoint(Element):
-    def __init__(self, identifier: int, name: str, question: str):
+
+    # ----------------------------------------------------------------------------------------------
+    def __init__(self, name: str, question: str, identifier: int = 0):
         super().__init__(ElementType.CHOICE_POINT, identifier)
         self.name = name
         self.question = question
 
+    # ----------------------------------------------------------------------------------------------
     def get_plantuml_code(self, code_type: CodeType = CodeType.STANDARD) -> str:
         if not self.question.endswith("?"):
             self.question += "?"
@@ -130,21 +182,30 @@ class ChoicePoint(Element):
             case CodeType.MASKED:
                 return f"{standard_code} #0000{self.identifier:02X};line:0000{self.identifier:02X}"
 
+    # ----------------------------------------------------------------------------------------------
     def get_variable_name(self) -> str:
         return f"CP_{self.name}"
 
+    # ----------------------------------------------------------------------------------------------
+    def get_string_representation(self) -> str:
+        return f"{self.question}"
+
+    # ----------------------------------------------------------------------------------------------
     @classmethod
     def from_plantuml_code(cls, plantuml_code: str):
         match = re.search(r'state\s+CP_(\w+)', plantuml_code)
         name = match.group(1) if match else None
         question_match = re.search(r'as\s+"([^"]+)"', plantuml_code)
         question = question_match.group(1) if question_match else None
-        identifier = 0
-        return cls(identifier, name, question)
+        return cls(name, question)
 
+# --------------------------------------------------------------------------------------------------
 # Transition class
+# --------------------------------------------------------------------------------------------------
 class Transition(Element):
-    def __init__(self, identifier: int, source_state: str, target_state: str, connector_type: ConnectorType, connector_length: int, messages: Optional[List[str]] = None):
+
+    # ----------------------------------------------------------------------------------------------
+    def __init__(self, source_state: str, target_state: str, connector_type: ConnectorType, connector_length: int, messages: List[str], identifier: int = 0):
         super().__init__(ElementType.TRANSITION, identifier)
         self.source_state = source_state
         self.target_state = target_state
@@ -152,6 +213,7 @@ class Transition(Element):
         self.connector_length = connector_length
         self.messages = messages if messages is not None else []
 
+    # ----------------------------------------------------------------------------------------------
     def get_plantuml_code(self, code_type: CodeType = CodeType.STANDARD) -> str:
         arrow_code_type = ""
         match code_type:
@@ -186,7 +248,12 @@ class Transition(Element):
             transition_code = transition_code[:-2]
         return transition_code
 
+    # ----------------------------------------------------------------------------------------------
     def get_variable_name(self) -> str:
+        pass
+
+    # ----------------------------------------------------------------------------------------------
+    def get_string_representation(self) -> str:
         pass
 
     @classmethod
@@ -199,5 +266,4 @@ class Transition(Element):
         target_state = parts[2]
         messages_list = parts[4:]
         messages = [message.strip() for message in messages_list]
-        identifier = 0
-        return cls(identifier, source_state, target_state, connector_type, connector_length, messages)
+        return cls(source_state, target_state, connector_type, connector_length, messages)

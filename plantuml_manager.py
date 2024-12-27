@@ -123,7 +123,7 @@ class PlantUMLManager:
         self.choice_points = []
         self.transitions = []
         self.elements = []
-        self.selected_element_identifiers = []
+        self.selected_element_identifiers = set()
         
         self.history = [self.get_plantuml_code(CodeType.STANDARD)]
         self.current_history_index = 0
@@ -227,7 +227,7 @@ class PlantUMLManager:
         component_name = component_name_line.split('"')[1]
         return component_name
 
-
+    # ----------------------------------------------------------------------------------------------
     def get_states_from_plantuml_code(self, plantuml_code: str):
         states_index = plantuml_code.find(STATES_PLANTUML_CODE) + len(STATES_PLANTUML_CODE)
         lines = []
@@ -326,7 +326,7 @@ class PlantUMLManager:
         self.selection_mask_diagram.set_plantuml_code(plantuml_code)
 
     # ----------------------------------------------------------------------------------------------
-    def get_element_at(self, x: int, y: int):
+    def get_element_at_coordinates(self, x: int, y: int):
         rgb_color = self.selection_mask_diagram.rendered_image.getpixel((x, y))
         if len(rgb_color) == 4:
             rgb_color = rgb_color[:3]
@@ -419,30 +419,54 @@ class PlantUMLManager:
             transition.connector_length = new_connector_length
         if new_messages is not None:
             transition.messages = new_messages
-        self.update_diagrams(EditActionType.VISUAL)
-        return True
 
     # ----------------------------------------------------------------------------------------------
-    def select_element(self, element):
-        self.selected_element_identifiers.append(element.identifier)
-        self.update_diagrams(EditActionType.SELECTION)
+    def select_elements(self, elements : list):
+        identifiers = set()
+        for element in elements:
+            identifiers.add(element.identifier)
+        self.select_identifiers(identifiers)
 
     # ----------------------------------------------------------------------------------------------
-    def deselect_element(self, element):
-        self.selected_element_identifiers.remove(element.identifier)
-        self.update_diagrams(EditActionType.SELECTION)
+    def deselect_elements(self, elements : list):
+        identifiers = set()
+        for element in elements:
+            identifiers.add(element.identifier)
+        self.deselect_identifiers(identifiers)
+    
+    # ----------------------------------------------------------------------------------------------
+    def select_identifiers(self, identifiers : set):
+        self.selected_element_identifiers.update(identifiers)
 
     # ----------------------------------------------------------------------------------------------
-    def get_selected_elements(self):
+    def deselect_identifiers(self, identifiers : set):
+        self.selected_element_identifiers.difference_update(identifiers)
+
+    # ----------------------------------------------------------------------------------------------
+    def get_selected_elements(self) -> list:
         return [self.get_element_by_identifier(identifier) for identifier in self.selected_element_identifiers]
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_selected_identifiers(self) -> set:
+        return self.selected_element_identifiers
 
     # ----------------------------------------------------------------------------------------------
-    def deselect_all_elements(self):
-        self.selected_element_identifiers = []
+    def deselect_all_elements(self, element_type: ElementType = None):
+        if element_type is None:
+            self.selected_element_identifiers = set()
+        else:
+            for element in self.elements:
+                if element.element_type == element_type:
+                    self.selected_element_identifiers.remove(element.identifier)
         self.update_diagrams(EditActionType.SELECTION)
 
     # ----------------------------------------------------------------------------------------------
-    def delete_elements(self, elements):
+    def notify_selection_change(self):
+        plantuml_code = self.get_plantuml_code(CodeType.SELECTED)
+        self.selection_indication_diagram.set_plantuml_code(plantuml_code)
+
+    # ----------------------------------------------------------------------------------------------
+    def delete_elements(self, elements : list):
         for element in elements:
             match element.element_type:
                 case ElementType.INTERFACE:
@@ -490,6 +514,7 @@ class PlantUMLManager:
             if transition.source_name == choice_point.name:
                 self.delete_transition(transition)
         self.update_diagrams(EditActionType.VISUAL)
+
     # ----------------------------------------------------------------------------------------------
     def delete_transition(self, transition: Transition):
         self.transitions.remove(transition)
@@ -583,3 +608,66 @@ class PlantUMLManager:
             transition_code_type = CodeType.SELECTED if code_type == CodeType.SELECTED and transition.identifier in self.selected_element_identifiers else code_type
             plantuml_code += f"{transition.get_plantuml_code(transition_code_type)}\n"
         return plantuml_code
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_element_by_identifier(self, identifier: int):
+        for element in self.elements:
+            if element.identifier == identifier:
+                return element
+        return None
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_elements_by_type(self, element_type: ElementType) -> list:
+        elements = []
+        for element in self.elements:
+            if element.element_type == element_type:
+                elements.append(element)
+        return elements
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_interface(self, name: str) -> Interface | None:
+        for interface in self.interfaces:
+            if interface.name == name:
+                return interface
+        return None
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_message(self, name: str) -> Message | None:
+        for message in self.messages:
+            if message.name == name:
+                return message
+        return None
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_message_by_interface_name(self, interface_name: str) -> Message | None:
+        for message in self.messages:
+            if message.interface == interface_name:
+                return message
+        return None
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_state(self, name: str) -> State | None:
+        for state in self.states:
+            if state.name == name or (state.display_name and state.display_name == name):
+                return state
+        return None
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_choice_point(self, question: str) -> ChoicePoint | None:
+        for choice_point in self.choice_points:
+            if choice_point.question == question:
+                return choice_point
+        return None
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_transition(self, source_name: str, target_name: str) -> Transition | None:
+        for transition in self.transitions:
+            if transition.source_name == source_name and transition.target_name == target_name:
+                return transition
+        return None
+    
+    
+    
+    
+
+    

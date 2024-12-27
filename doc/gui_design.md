@@ -106,7 +106,7 @@ The table is sorted alphabetically by the "Source state" column, then by the "In
 
 The combination of "Source state", "Interface" and "Message" must be unique. If the combination is not unique, the transition is not added to the table.
 
-## Properties Windows
+## Properties Dialogs
 
 When a single diagram element is selected and the "Edit" button in the toolbar is clicked, the element's properties window is shown. The properties window allows detailed editing of the selected diagram element.
 
