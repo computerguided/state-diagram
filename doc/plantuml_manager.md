@@ -276,6 +276,9 @@ The following methods are used to add new elements to the diagram. They return t
 
 The following methods are used to update elements, and return `True` if successful and `False` otherwise (e.g. the element does not exist or the new name is already used by another element):
 
+
+- [`update_interface(interface: Interface, new_name: str | None = None) -> bool`](#update-an-interface): updates the name of an interface. It also updates the name of all messages that use this interface.
+- [`update_message(message: Message, new_name: str | None = None, new_interface: str | None = None) -> bool`](#update-a-message): updates the name of a message. It also updates the transitions that use this message.
 - [`update_state(state: State, new_name: str | None = None, new_display_name: str | None = None) -> bool`](#update-a-state): updates the name and/or display name of a state. When the name is updated, it also updates the name of the source and target states of all transitions that have the state as source or target.
 - [`update_choice_point(choice_point: ChoicePoint, new_name: str | None = None, new_question: str | None = None) -> bool`](#update-a-choice-point): updates the name and/or question of a choice-point if provided. When the name is updated, it also updates the name of the source state of all transitions that have the choice-point as source.
 - [`update_transition(transition: Transition, new_connector_type: str | None = None, new_connector_length: int | None = None, new_messages: List[Message] | None = None) -> bool`](#update-a-transition): updates the connector type, length or messages of a transition when provided.
@@ -824,6 +827,20 @@ plantuml_code = self.get_plantuml_code(CodeType.MASKED)
 self.selection_mask_diagram.set_plantuml_code(plantuml_code)
 ```
 
+## Get elements by type
+
+The following method is used to retrieve the elements of a given type:
+
+```python
+def get_elements_by_type(self, element_type: ElementType) -> list[Element]:
+```
+
+The elements are retrieved from the `elements` list.
+
+```python
+return [element for element in self.elements if element.element_type == element_type]
+```
+
 ## Get an element at given coordinates
 
 The following method is used to get the element at the given coordinates:
@@ -885,23 +902,26 @@ return interface
 The following method is used to add a new message to the diagram:
 
 ```python
-def add_message(interface_name: str, message_name: str) -> Message | None:
+def add_message(interface: Interface, message_name: str) -> Message | None:
 ```
 
-First it is checked if the message name already exists by checking if a message with the given interface variable name and message name is in the `messages` list:
+First it is checked if the message name already exists by checking if a message with the given interface name and message name is in the `messages` list. The [`get_messages_by_interface()`](#get-messages-by-interface) method is used to retrieve the messages for the given interface.
 
 ```python
-if any(message.interface_name == interface_name and message.name == message_name for message in self.messages):
+messages = self.get_messages_by_interface(interface)
+if any(message.name == message_name for message in messages):
     return None
 ```
 
 If the message name does not exist, a new `Message` object is created with the given interface variable name and message name and added to the `messages` list:
 
 ```python
-message = Message(interface_name, message_name)
+message = Message(interface.name, message_name)
 self.messages.append(message)
 return message
 ```
+
+Note that the message is not added to the `elements` list as it is not a visual element like a state, choice-point or transition.
 
 ## Add a new state
 
@@ -951,20 +971,151 @@ return choice_point
 
 ## Add a new transition
 
-The following method is used to add a new - empty - transition to the diagram:
+To add a transition, the `add_transition()` method can be called. This is always done when a source and target are specified, and - optionally - a set of messages is provided.
 
 ```python
-def add_transition(source_name: str, target_name: str, connector_type: str, connector_length: int) -> Transition | None:
+def add_transition(self, 
+                   source: State | ChoicePoint,
+                   target: State | ChoicePoint, 
+                   messages: list[Message] = []) -> Transition | None:
 ```
 
-A transition can always be added because it is possible to add messages later and it is allowed to have multiple transitions between the same source and target. This is because the developer could decide this when editing the diagram for clarity reasons.
-
-A new `Transition` object is created with the given source, target, connector type, connector length and an empty list of messages and added to the `transitions` list:
+The first step is to retrieve all messages that are handled by the `source` by calling the [`get_handled_messages()`](#get-handled-messages) method and storing the variable names of the handled messages in the `handled_messages_variable_names` set.
 
 ```python
-transition = Transition(source_name, target_name, connector_type, connector_length, [])
-self.transitions.append(transition)
-return transition
+handled_messages_variable_names = {message.get_variable_name() for message in self.get_handled_messages(source.get_variable_name())}
+```
+
+The variable names are also retrieved by calling the [`get_variable_name()`](elements.md#get-message-variable-name) method on the `Message` objects in the `messages` set.
+
+```python
+messages_variable_names = {message.get_variable_name() for message in messages}
+```
+
+The method then creates a set that contains all variable names of the messages that are not already handled by the source.
+
+```python
+unhandled_messages_variable_names = messages_variable_names - handled_messages_variable_names
+```
+
+Note that, if the call was done properly, the `messages_variable_names` set contains only the variable names of the messages that are not already handled by the source, hence `unhandled_messages_variable_names` will be the same as `messages_variable_names`. The statement corrects for the case that the call was not done properly.
+
+The method can now check for the following scenarios that need to be handled differently:
+
+1. The source is a choice-point.
+2. The source is the `START` state.
+3. The source is a state.
+
+These scenarios are handled as described in the following.
+
+First, let's check if the source is a choice-point. If it is, then the `unhandled_messages_variable_names` must be a subset of the set {"$Logical_No", "$Logical_Yes"} because a choice-point can only handle these two messages. If this is the case, the existing transition is updated with the new messages. Otherwise, the transition is added to the `transitions` list.
+
+```python
+if source.element_type == ElementType.CHOICE_POINT:
+    required_messages = {"$Logical_No", "$Logical_Yes"}
+    if not unhandled_messages_variable_names.issubset(required_messages):
+        return None
+```
+
+Now let's check if the source is the `START` state. If it is, then there can be no outgoing transitions because the `START` state has only one outgoing transition, i.e. to the initial state of the state diagram. The outgoing transitions can be retrieved by calling the [`get_transitions()`](#get-transitions) method. If there are outgoing transitions, the method can return `None` to indicate that the transition was not added.
+
+```python
+if source.name == "START":
+    outgoing_transitions = self.get_transitions(source="START")
+    if len(outgoing_transitions) > 0:
+        return None
+```
+
+Now that all the scenarios are handled, the method checks whether the messages need to be added to the message set of an existing transition, but only if the source is not the `START` state.To do this, first an already existing transition is retrieved by calling the [`get_transitions()`](#get-transitions) method.
+
+```python
+existing_transition = None
+if source != "START":
+    existing_transitions = self.get_transitions(source=source, target=target)
+    if len(existing_transitions) > 0:
+        existing_transition = existing_transitions[0]
+```
+
+If an existing transition is found, the unhandled messages are added to the message set of the existing transition and the existing transition is returned. If there are no unhandled messages, then there is no need to update the existing transition and `None` is returned.
+
+```python
+if existing_transition is not None:
+    existing_transition.messages.update(unhandled_messages_variable_names)
+    return existing_transition
+```
+
+Otherwise, a new transition must be [constructed](elements.md#transition).
+
+```python
+new_transition = Transition(source, 
+                            target,
+                            ConnectorType.LEFT,
+                            1,
+                            unhandled_messages_variable_names,
+                            len(self.elements))
+```
+
+The new transition is added to the `transitions` list and the `elements` list and the transition is returned.
+
+```python
+self.transitions.append(new_transition)
+self.elements.append(new_transition)
+return new_transition
+```
+
+## Update an interface
+
+The following method is used to update an interface:
+
+```python
+def update_interface(interface: Interface, new_name: str) -> bool:
+```
+
+When the new name already exists for another interface, the interface is not updated and `False` is returned.
+
+```python
+if any(other_interface.name == new_name and other_interface != interface for other_interface in self.interfaces):
+    return False
+```
+
+If the new name does not exist yet, it is updated for the interface and all the messages that use this interface are updated as well.
+
+```python
+for message in self.messages:
+    if message.interface == interface.name:
+        message.interface = new_name
+interface.name = new_name
+```
+
+Finally, `True` is returned to indicate that the interface was updated successfully.
+
+```python
+return True
+```
+
+## Update a message
+
+The following method is used to update a message:
+
+```python
+def update_message(message: Message, new_name: str) -> bool:
+```
+
+When the new name already exists for another message on the same interface, the message is not updated and `False` is returned.
+
+```python
+if any(other_message.name == new_name and other_message.interface == message.interface for other_message in self.messages):
+    return False
+```
+
+If the new name does not exist yet, it is updated for the message and the transitions that have the message as one of their `messages` are updated as well.
+
+```python
+message.name = new_name
+for transition in self.transitions:
+    if message.get_variable_name() in transition.messages:
+        transition.messages.remove(message)
+        transition.messages.append(message)
 ```
 
 ## Update a state
@@ -1560,24 +1711,91 @@ for choice_point in choice_points:
 return None
 ```
 
-## Get a transition
+## Get transitions
 
-The `get_transition()` method returns the transition with the given source and target names and if the message is not `None`, also the message is checked.
+The `get_transitions()` method returns the transitions with the given source variable name if defined and target variable name if defined.
 
 ```python
-get_transition(source_name: str, target_name: str, message: str = None) -> Transition | None
+get_transitions(source: str | None, target: str | None) -> list[Transition]
 ```
 
-The method iterates over all transitions and returns the transition for which the `source_name` and `target_name` match the given source and target names. If the message is not `None`, the message is also checked. If no transition with the given source and target names exists, `None` is returned.
+If neither the `source` nor the `target` is defined, the method returns an empty list.
+
+```python
+if source is None and target is None:
+    return []
+```
+
+If both the `source` and `target` are defined, the method returns the transitions for which the `source` and `target` match the given source and target states.
+
+If only the `source` is defined, the method returns all _outgoing_ transitions for which the `source` matches the given source state.
+
+If only the `target` is defined, the method returns all _incoming_ transitions for which the `target` matches the given target state.
+
+```python
+found_transitions = []
+for transition in transitions:
+    if (transition.source == source and transition.target == target) or \
+       (source is not None and transition.source == source) or \
+       (target is not None and transition.target == target):
+        found_transitions.append(transition)
+return found_transitions
+```
+
+## Get handled messages
+
+The `get_handled_messages()` method returns the messages that are handled by a state or choice-point.
+
+```python
+get_handled_messages(source: str) -> list[Message]:
+```
+
+The method iterates over all transitions and returns the messages in those transitions for which the `source_state` matches the given state. Note that the list of messages of a transition is a list of variable names. These variable names are used to get the actual messages by using the [`get_message_by_variable_name()`](#get-a-message-by-variable-name) method.
 
 ```python
 for transition in transitions:
-    if transition.source_name == source_name and transition.target_name == target_name:
-        if message is not None:
-            if transition.message == message:
-                return transition
-        else:
-            return transition
+    if transition.source == source:
+        for message_variable_name in transition.messages:
+            message = self.get_message_by_variable_name(message_variable_name)
+            if message is not None:
+                messages.append(message)
+return messages
+        continue
+    found_transitions.append(transition)
+return found_transitions
+```
+
+## Get a message by variable name
+
+The `get_message_by_variable_name()` method returns the message with the given variable name.
+
+```python
+get_message_by_variable_name(variable_name: str) -> Message | None
+```
+
+The method iterates over all messages and returns the message with the given variable name. If no message with the given variable name exists, `None` is returned.
+
+```python
+for message in messages:
+    if message.get_variable_name() == variable_name:
+        return message
 return None
 ```
 
+## Get messages by interface
+
+The `get_messages_by_interface()` method returns the messages with the given interface name.
+
+```python
+get_messages_by_interface(interface: Interface) -> list[Message]
+```
+
+The method iterates over all messages and returns the messages with the given interface name.
+
+```python
+found_messages = []
+for message in messages:
+    if message.interface == interface.name:
+        found_messages.append(message)
+return found_messages
+```

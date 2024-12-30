@@ -3,7 +3,6 @@
 # --------------------------------------------------------------------------------------------------
 from enum import Enum
 import re
-from typing import Optional, List
 
 # --------------------------------------------------------------------------------------------------
 # Enums
@@ -101,9 +100,7 @@ class Message(Element):
 
     # ----------------------------------------------------------------------------------------------
     def get_variable_name(self) -> str:
-        if self.interface:
-            return f"${self.interface}_{self.name}"
-        return f"${self.name}"
+        return f"{self.interface}_{self.name}"
 
     # ----------------------------------------------------------------------------------------------
     def get_string_representation(self) -> str:
@@ -205,13 +202,19 @@ class ChoicePoint(Element):
 class Transition(Element):
 
     # ----------------------------------------------------------------------------------------------
-    def __init__(self, source_state: str, target_state: str, connector_type: ConnectorType, connector_length: int, messages: List[str], identifier: int = 0):
+    def __init__(self, 
+                 source: str, 
+                 target: str, 
+                 connector_type: ConnectorType, 
+                 connector_length: int, 
+                 messages: set[Message] = set(),
+                 identifier: int = 0):
         super().__init__(ElementType.TRANSITION, identifier)
-        self.source_state = source_state
-        self.target_state = target_state
+        self.source = source
+        self.target = target
         self.connector_type = connector_type
         self.connector_length = connector_length
-        self.messages = messages if messages is not None else []
+        self.messages = messages if messages is not None else set()
 
     # ----------------------------------------------------------------------------------------------
     def get_plantuml_code(self, code_type: CodeType = CodeType.STANDARD) -> str:
@@ -239,7 +242,7 @@ class Transition(Element):
             for _ in range(self.connector_length - 1):
                 connector_code = "-" + connector_code
 
-        transition_code = f"{self.source_state} {connector_code} {self.target_state}"
+        transition_code = f"{self.source} {connector_code} {self.target}"
 
         if len(self.messages) > 0:
             transition_code += " : "
@@ -249,21 +252,21 @@ class Transition(Element):
         return transition_code
 
     # ----------------------------------------------------------------------------------------------
-    def get_variable_name(self) -> str:
-        pass
-
-    # ----------------------------------------------------------------------------------------------
-    def get_string_representation(self) -> str:
-        pass
-
     @classmethod
     def from_plantuml_code(cls, plantuml_code: str):
-        parts = plantuml_code.split()
-        source_state = parts[0]
+        parts = plantuml_code.split(" ")
+        source = parts[0]
         connector = parts[1]
-        connector_type = ConnectorType.UP if "-up" in connector else ConnectorType.RIGHT if "-right" in connector else ConnectorType.DOWN if "--" in connector else ConnectorType.LEFT
+        connector_type = ConnectorType.UP if "-up-" in connector else \
+                         ConnectorType.LEFT if "-left-" in connector else \
+                         ConnectorType.DOWN if "-down-" in connector else \
+                         ConnectorType.RIGHT
         connector_length = connector.count("-") - 1 if connector_type in [ConnectorType.UP, ConnectorType.DOWN] else 1
-        target_state = parts[2]
-        messages_list = parts[4:]
-        messages = [message.strip() for message in messages_list]
-        return cls(source_state, target_state, connector_type, connector_length, messages)
+        target = parts[2]
+        if len(parts) == 5:
+            messages_list = parts[4].split("\n")
+        else:
+            messages_list = []
+        messages = set(message for message in messages_list)
+        return cls(source, target, connector_type, connector_length, messages)
+

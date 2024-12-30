@@ -1,5 +1,5 @@
 from diagram import Diagram
-from elements import Interface, Message, State, ChoicePoint, Transition, CodeType, ElementType, ConnectorType
+from elements import *
 
 from enum import Enum
 import atexit
@@ -317,11 +317,9 @@ class PlantUMLManager:
         plantuml_code = self.get_plantuml_code(CodeType.SELECTED)
         self.selection_indication_diagram.set_plantuml_code(plantuml_code)        
 
-        if action == EditActionType.SELECTION or action == EditActionType.NON_VISUAL:
+        if action == EditActionType.SELECTION:
             return
         
-        plantuml_code = self.get_plantuml_code(CodeType.STANDARD)
-        self.state_diagram.set_plantuml_code(plantuml_code)
         plantuml_code = self.get_plantuml_code(CodeType.MASKED)
         self.selection_mask_diagram.set_plantuml_code(plantuml_code)
 
@@ -334,55 +332,87 @@ class PlantUMLManager:
         return self.elements[index] if 0 <= index < len(self.elements) else None
 
     # ----------------------------------------------------------------------------------------------
-    def add_interface(self, interface_name: str):
+    def add_interface(self, interface_name: str) -> Interface | None:
         if any(interface.name == interface_name for interface in self.interfaces):
             return None
-        interface = Interface(len(self.elements), interface_name)
+        interface = Interface(interface_name, len(self.elements))
         self.interfaces.append(interface)
         self.elements.append(interface)
-        self.update_diagrams(EditActionType.NON_VISUAL)
         return interface
 
     # ----------------------------------------------------------------------------------------------
-    def add_message(self, interface_name: str, message_name: str):
+    def add_message(self,
+                    interface_name: str,
+                    message_name: str) -> Message | None:
         if any(message.interface == interface_name and message.name == message_name for message in self.messages):
             return None
-        message = Message(len(self.elements), interface_name, message_name)
+        message = Message(interface_name, message_name, len(self.elements))
         self.messages.append(message)
         self.elements.append(message)
-        self.update_diagrams(EditActionType.NON_VISUAL)
         return message
 
     # ----------------------------------------------------------------------------------------------
-    def add_state(self, state_name: str, display_name: str = ""):
+    def add_state(self, 
+                  state_name: str,
+                  display_name: str = "") -> State | None:
         if any(state.name == state_name for state in self.states):
             return None
-        state = State(len(self.elements), state_name, display_name)
+        state = State(state_name, display_name, len(self.elements))
         self.states.append(state)
         self.elements.append(state)
-        self.update_diagrams(EditActionType.VISUAL)
         return state
 
     # ----------------------------------------------------------------------------------------------
-    def add_choice_point(self, choice_point_name: str, question: str = ""):
+    def add_choice_point(self, 
+                         choice_point_name: str,
+                         question: str = "") -> ChoicePoint | None:
         if any(choice_point.name == choice_point_name for choice_point in self.choice_points):
             return None
-        choice_point = ChoicePoint(len(self.elements), choice_point_name, question)
+        choice_point = ChoicePoint(choice_point_name, question, len(self.elements))
         self.choice_points.append(choice_point)
         self.elements.append(choice_point)
-        self.update_diagrams(EditActionType.VISUAL)
         return choice_point
 
     # ----------------------------------------------------------------------------------------------
-    def add_transition(self, source_name: str, target_name: str, connector_type: ConnectorType = ConnectorType.LEFT, connector_length: int = 1, messages: list = []):
-        transition = Transition(len(self.elements), source_name, target_name, connector_type, connector_length, messages)
+    def add_transition(self, 
+                       source_state: State | ChoicePoint,
+                       target_state: State | ChoicePoint, 
+                       messages: set[Message] = set()) -> Transition:
+
+
+        existing_transition = self.get_transition(source_state, target_state)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        if existing_transition is not None:
+            return existing_transition
+
+
+        
+        transition = Transition(source_state, 
+                                target_state,
+                                ConnectorType.LEFT,
+                                1,
+                                messages, 
+                                len(self.elements))
         self.transitions.append(transition)
         self.elements.append(transition)
-        self.update_diagrams(EditActionType.VISUAL)
         return transition
 
     # ----------------------------------------------------------------------------------------------
-    def update_state(self, state: State, new_name: str = None, new_display_name: str = None) -> bool:
+    def update_state(self, 
+                     state: State,
+                     new_name: str = None,
+                     new_display_name: str = None) -> bool:
         if any(other_state.name == new_name and other_state != state for other_state in self.states):
             return False
         if new_name is not None:
@@ -394,11 +424,13 @@ class PlantUMLManager:
             state.name = new_name
         if new_display_name is not None:
             state.display_name = new_display_name
-        self.update_diagrams(EditActionType.VISUAL)
         return True
 
     # ----------------------------------------------------------------------------------------------
-    def update_choice_point(self, choice_point: ChoicePoint, new_name: str = None, new_question: str = None) -> bool:
+    def update_choice_point(self,
+                            choice_point: ChoicePoint, 
+                            new_name: str = None, 
+                            new_question: str = None) -> bool:
         if any(other_choice_point.name == new_name and other_choice_point != choice_point for other_choice_point in self.choice_points):
             return False
         if new_name is not None:
@@ -408,17 +440,21 @@ class PlantUMLManager:
             choice_point.name = new_name
         if new_question is not None:
             choice_point.question = new_question
-        self.update_diagrams(EditActionType.VISUAL)
         return True
 
     # ----------------------------------------------------------------------------------------------
-    def update_transition(self, transition: Transition, new_connector_type: str = None, new_connector_length: int = None, new_messages: list = None) -> bool:
+    def update_transition(self, 
+                          transition: Transition, 
+                          new_connector_type: ConnectorType = None, 
+                          new_connector_length: int = None, 
+                          new_messages: list = None) -> bool:
         if new_connector_type is not None:
             transition.connector_type = new_connector_type
         if new_connector_length is not None:
             transition.connector_length = new_connector_length
         if new_messages is not None:
             transition.messages = new_messages
+        return True
 
     # ----------------------------------------------------------------------------------------------
     def select_elements(self, elements : list):
@@ -639,9 +675,17 @@ class PlantUMLManager:
         return None
     
     # ----------------------------------------------------------------------------------------------
-    def get_message_by_interface_name(self, interface_name: str) -> Message | None:
+    def get_messages_by_interface_name(self, interface_name: str) -> list[Message]:
+        messages = []
         for message in self.messages:
             if message.interface == interface_name:
+                messages.append(message)
+        return messages
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_message_by_variable_name(self, variable_name: str) -> Message | None:
+        for message in self.messages:
+            if message.get_variable_name() == variable_name:
                 return message
         return None
     
@@ -653,6 +697,13 @@ class PlantUMLManager:
         return None
     
     # ----------------------------------------------------------------------------------------------
+    def get_state_by_variable_name(self, variable_name: str) -> State | None:
+        for state in self.states:
+            if state.get_variable_name() == variable_name:
+                return state
+        return None
+    
+    # ----------------------------------------------------------------------------------------------
     def get_choice_point(self, question: str) -> ChoicePoint | None:
         for choice_point in self.choice_points:
             if choice_point.question == question:
@@ -660,11 +711,57 @@ class PlantUMLManager:
         return None
     
     # ----------------------------------------------------------------------------------------------
-    def get_transition(self, source_name: str, target_name: str) -> Transition | None:
+    def get_choice_point_by_variable_name(self, variable_name: str) -> ChoicePoint | None:
+        for choice_point in self.choice_points:
+            if choice_point.get_variable_name() == variable_name:
+                return choice_point
+        return None
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_element_by_variable_name(self, variable_name: str) -> Element | None:
+        state = self.get_state_by_variable_name(variable_name)
+        if state is not None:
+            return state
+        choice_point = self.get_choice_point_by_variable_name(variable_name)
+        if choice_point is not None:
+            return choice_point
+        message = self.get_message_by_variable_name(variable_name)
+        if message is not None:
+            return message
+        return None
+
+    # ----------------------------------------------------------------------------------------------
+    def get_transition(self, 
+                       source_state: State | ChoicePoint,
+                       target_state: State | ChoicePoint) -> Transition | None:
         for transition in self.transitions:
-            if transition.source_name == source_name and transition.target_name == target_name:
+            if transition.source_state == source_state and transition.target_state == target_state:
                 return transition
         return None
+
+    # ----------------------------------------------------------------------------------------------
+    def find_handled_messages(self, source: State | ChoicePoint ) -> list[Message]:
+        state_variable_name = source.get_variable_name()
+        messages = []
+        for transition in self.transitions:
+            if transition.source == state_variable_name:
+                for message_variable_name in transition.messages:
+                    message = self.get_message_by_variable_name(message_variable_name)
+                    if message is not None:
+                        messages.append(message)
+        return messages
+    
+    # ----------------------------------------------------------------------------------------------
+    def get_messages_by_interface(self, interface: Interface) -> list[Message]:
+        messages = []
+        for message in self.messages:
+            if message.interface == interface.name:
+                messages.append(message)
+        return messages
+    
+    
+    
+    
     
     
     

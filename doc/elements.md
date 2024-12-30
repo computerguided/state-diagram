@@ -8,13 +8,10 @@ The following imports are used:
 
 - `Enum`: to define enums.
 - `re`: to use regular expressions.
-- `Optional`: to indicate that a variable may be `None`.
-- `List`: to indicate that a variable is a list.
 
 ```python
 from enum import Enum
 import re
-from typing import Optional, List
 ```
 
 ## Overview
@@ -28,7 +25,7 @@ The following elements are defined:
 - [`ChoicePoint`](#choice-point)
 - [`Transition`](#transition)
 
-in the following sections, the classes are described in detail.
+In the following sections, these classes are described in detail.
 
 ## Enums
 
@@ -81,10 +78,12 @@ The `Element` class has the following attributes:
 
 ### Constructor
 
-The constructor of the class takes the type of the element and the optional identifier as arguments.
+The constructor of the `Element` class takes the type of the element and the optional identifier as arguments.
 
 ```python
 def __init__(self, element_type: ElementType, identifier: int = 0):
+    self.element_type = element_type
+    self.identifier = identifier
 ```
 
 ### Methods
@@ -94,10 +93,11 @@ The `Element` class has the following methods:
 - `get_plantuml_code(code_type: CodeType = CodeType.STANDARD)`: returns the PlantUML code of the element, depending on the type of the code. This is overridden by the subclasses.
 - `get_variable_name()`: returns the variable name of the element. This is overridden by the subclasses.
 - `from_plantuml_code(plantuml_code: str)`: classmethod that sets the attributes of the element from the PlantUML code. This is overridden by the subclasses.
+- `get_string_representation()`: returns a string representation of the element in for example a list of elements. This is overridden by the subclasses.
 
 ## Interface
 
-The `Interface` class is a subclass of `Element` with the type set to `Interface` and is responsible for holding the data of an interface. 
+The `Interface` class is a subclass of `Element` with the type set to `Interface` and is responsible for holding the data of an interface.
 
 It has the following additional attributes:
 
@@ -120,6 +120,7 @@ The `Interface` class has the following methods:
 - [`get_plantuml_code(code_type: CodeType = CodeType.STANDARD)`](#get-interface-plantuml-code): returns the PlantUML code of the interface, depending on the type of the code.
 - [`get_variable_name()`](#get-interface-variable-name): returns the variable name of the interface.
 - [`from_plantuml_code(plantuml_code: str)`](#set-interface-from-plantuml-code): classmethod that sets the attributes of the interface from the PlantUML code.
+- [`get_string_representation()`](#get-interface-string-representation): returns a string representation of the interface in for example a list of elements.
 
 ### Get interface PlantUML code
 
@@ -166,16 +167,19 @@ The method splits the `plantuml_code` at the `=` character and then sets the `na
 name = plantuml_code.split("=")[1].strip()
 ```
 
-The identifier is set to default value of `0` as this is not used for an interface.
-
-```python
-identifier = 0
-```
-
 The class method can then be called with the `cls` parameter set to `Interface`.
 
 ```python
-return cls(identifier, name)
+return cls(name)
+```
+
+### Get interface string representation
+
+The string representation of an interface is the name of the interface.
+
+```python
+def get_string_representation(self) -> str:
+    return f"{self.name}"
 ```
 
 ## Message
@@ -187,14 +191,14 @@ The `Message` class is a subclass of `Element` with the type set to `Message` an
 The `Message` class has the following additional attributes:
 
 - `name`: a string containing the name of the message.
-- `interface`: an optional string containing the variable name of the interface of the message.
+- `interface`: a string containing the _name_ of the interface of the message.
 
 ### Constructor
 
 The constructor of the class takes the following arguments:
 
 ```python
-    def __init__(self, identifier: int, name: str, interface: str | None = None):
+    def __init__(self, identifier: int, name: str, interface: str):
         super().__init__(ElementType.MESSAGE, identifier)
         self.name = name
         self.interface = interface
@@ -207,7 +211,7 @@ The class has the following methods:
 - [`get_plantuml_code(code_type: CodeType = CodeType.STANDARD)`](#get-message-plantuml-code): returns the PlantUML code of the message, depending on the type of the code.
 - [`get_variable_name()`](#get-message-variable-name): returns the variable name of the message.
 - [`from_plantuml_code(plantuml_code: str)`](#set-message-from-plantuml-code): classmethod that sets the attributes of the message from the PlantUML code.
-
+- [`get_string_representation()`](#get-message-string-representation): returns a string representation of the message in for example a list of elements.
 ### Get message PlantUML code
 
 A message is represented by a variable in the PlantUML code for example:
@@ -242,9 +246,7 @@ For a message the variable name is `$<interface>_<name>` unless the interface is
 
 ```python
 def get_variable_name(self) -> str:
-    if self.interface:
-        return f"{self.interface}_{self.name}"
-    return f"${self.name}"
+    return f"${self.interface}_{self.name}"
 ```
 
 ### Set message from PlantUML code
@@ -275,16 +277,19 @@ interface = plantuml_code[:plantuml_code.rfind("_")].strip()
 interface = interface[2:]
 ```
 
-The identifier is set to default value of `0` as this is not used for a message.
-
-```python
-identifier = 0
-```
-
 The class method can then be called with the `cls` parameter set to `Message`.
 
 ```python
-return cls(identifier, interface, name)
+return cls(name, interface)
+```
+
+### Get message string representation
+
+The string representation of a message is the name of the message.
+
+```python
+def get_string_representation(self) -> str:
+    return f"{self.name}"
 ```
 
 ## State
@@ -303,7 +308,7 @@ The `State` class has the following additional attributes:
 The constructor of the class takes the following arguments:
 
 ```python
-    def __init__(self, identifier: int, name: str, display_name: str | None = None):
+    def __init__(self, identifier: int, name: str, display_name: str = ""):
         super().__init__(ElementType.STATE, identifier)
         self.name = name
         self.display_name = display_name
@@ -316,7 +321,7 @@ The `State` class has the following methods:
 - [`get_plantuml_code(code_type: CodeType = CodeType.STANDARD)`](#get-state-plantuml-code): returns the PlantUML code of the state, depending on the type of the code.
 - [`get_variable_name()`](#get-state-variable-name): returns the variable name of the state.
 - [`from_plantuml_code(plantuml_code: str)`](#set-state-from-plantuml-code): classmethod that sets the attributes of the state from the PlantUML code.
-
+- [`get_string_representation()`](#get-state-string-representation): returns a string representation of the state in for example a list of elements.
 ### Get state PlantUML code
 
 For `code_type` set to `STANDARD` a state is represented by a variable in the PlantUML code for example:
@@ -414,6 +419,15 @@ The class method can then be called with the `cls` parameter set to `State`.
 return cls(identifier, name, display_name)
 ```
 
+### Get state string representation
+
+The string representation of a state is the name of the state or the display name if it is set.
+
+```python
+def get_string_representation(self) -> str:
+    return f"{self.display_name if self.display_name else self.name}"
+```
+
 ## Choice-point
 
 The `ChoicePoint` class is a subclass of `Element` with the type set to `ChoicePoint` and is responsible for holding the data of a choice-point.
@@ -443,6 +457,7 @@ The `ChoicePoint` class has the following methods:
 - [`get_plantuml_code(code_type: CodeType = CodeType.STANDARD)`](#get-choice-point-plantuml-code): returns the PlantUML code of the choice-point, depending on the type of the code.
 - [`get_variable_name()`](#get-choice-point-variable-name): returns the variable name of the choice-point.
 - [`from_plantuml_code(plantuml_code: str)`](#set-choice-point-from-plantuml-code): classmethod that sets the attributes of the choice-point from the PlantUML code.
+- [`get_string_representation()`](#get-choice-point-string-representation): returns a string representation of the choice-point in for example a list of elements.
 
 ### Get choice-point PlantUML code
 
@@ -545,6 +560,15 @@ The class method can then be called with the `cls` parameter set to `ChoicePoint
 return cls(identifier, name, question)
 ```
 
+### Get choice-point string representation
+
+The string representation of a choice-point is the the question of the choice-point.
+
+```python
+def get_string_representation(self) -> str:
+    return f"{self.question}"
+```
+
 ## Transition
 
 The `Transition` class is a subclass of `Element` with the type set to `Transition` and is responsible for holding the data of a transition.
@@ -553,24 +577,31 @@ The `Transition` class is a subclass of `Element` with the type set to `Transiti
 
 The `Transition` class has the following additional attributes:
 
-- `source_state`: a string containing the variable name of the source state of the transition.
-- `target_state`: a string containing the variable name of the target state of the transition.
+- `source`: a string containing the _variable name_ of the source state or choice-point of the transition.
+- `target`: a string containing the _variable name_ of the target state or choice-point of the transition.
 - `connector_type`: an enum (`Left`, `Right`, `Up`, `Down`) containing the type of the connector of the transition.
 - `connector_length`: an integer containing the length of the connector of the transition.
-- `messages`: a list of strings containing message variable names.
+- `messages`: a set of strings containing the _variable names_ of the messages of the transition. This set can be empty, for example when the transition is used as a placeholder for a transition or when the source is the "Start" state, in which case there is no message associated with the transition.
 
 ### Constructor
 
 The constructor of the class takes the following arguments of which the messages is optional because it can be empty.
 
 ```python
-    def __init__(self, identifier: int, source_state: str, target_state: str, connector_type: ConnectorType, connector_length: int, messages: list[str] | None = None):
+    def __init__(self, 
+                identifier: int, 
+                source: str, 
+                target: str, 
+                connector_type: ConnectorType, 
+                connector_length: int, 
+                messages: set[str] = set()):
+
         super().__init__(ElementType.TRANSITION, identifier)
-        self.source_state = source_state
-        self.target_state = target_state
+        self.source = source
+        self.target = target
         self.connector_type = connector_type
         self.connector_length = connector_length
-        self.messages = messages if messages is not None else []
+        self.messages = messages
 ```
 
 ### Methods
@@ -578,8 +609,9 @@ The constructor of the class takes the following arguments of which the messages
 The `Transition` class has the following methods:
 
 - [`get_plantuml_code(code_type: CodeType = CodeType.STANDARD)`](#get-transition-plantuml-code): returns the PlantUML code of the transition, depending on the type of the code.
-- [`get_variable_name()`](#get-transition-variable-name): returns the variable name of the transition.
 - [`from_plantuml_code(plantuml_code: str)`](#set-transition-from-plantuml-code): classmethod that sets the attributes of the transition from the PlantUML code.
+
+There is no variable name or string representation of a transition.
 
 ### Get transition PlantUML code
 
@@ -657,7 +689,7 @@ if self.connector_type in [ConnectorType.UP, ConnectorType.DOWN]:
 Next the first part of the transition can be generated by adding the source state, the connector code and the arrow code and then the target state.
 
 ```python
-transition_code = f"{self.source_state.name} {connector_code} {self.target_state.name}"
+transition_code = f"{self.source} {connector_code} {self.target}"
 ```
 
 Finally the messages are added to the transition code. This is only done if there are any messages. If that is the case, first a `:` is added and then the messages separated by a new line character. This can then be returned.
@@ -666,17 +698,8 @@ Finally the messages are added to the transition code. This is only done if ther
 if len(self.messages) > 0:
     transition_code += " : "
     for message in self.messages:
-        transition_code += f"{message.get_variable_name()}\\n"
+        transition_code += f"{message}\\n"
 return transition_code
-```
-
-### Get transition variable name
-
-For a transition the variable name is not used and is not generated. To prevent an error the following method is defined but does nothing.
-
-```python
-def get_variable_name(self) -> str:
-    pass
 ```
 
 ### Set transition from PlantUML code
@@ -691,6 +714,7 @@ def from_plantuml_code(cls, plantuml_code: str):
 Some examples of the code that needs to be set are:
 
 ```
+START -> Advertising
 Connecting --> Advertising
 Connecting -> Advertising : $RTx_ConnectReq
 Connecting -up-> Advertising : $RTx_ConnectReq\n$RTx_ConnectedInd
@@ -700,16 +724,16 @@ Connecting -----> Advertising : $RTx_ConnectReq\n$RTx_ConnectedInd
 The method first splits the `plantuml_code` based on spaces.
 
 ```python
-parts = plantuml_code.split()
+parts = plantuml_code.split(" ")
 ```
 
-The source state is the first part.
+The `source` is the first part.
 
 ```python
-source_state = parts[0]
+source = parts[0]
 ```
 
-The connector is the second part.
+The `connector` is the second part.
 
 ```python
 connector = parts[1]
@@ -717,51 +741,47 @@ connector = parts[1]
 
 To determine the connector type, the following is done:
 
-- If the connector contains `-up`, the connector type is set to `UP`.
-- If the connector contains `-right`, the connector type is set to `RIGHT`.
-- If the connector contains `--`, the connector type is set to `DOWN`.
-- Otherwise the connector type is set to `LEFT`.
+- If the connector contains `-up-`, the connector type is set to `UP`.
+- If the connector contains `-left-`, the connector type is set to `LEFT`.
+- If the connector contains `-down-`, the connector type is set to `DOWN`.
+- Otherwise the connector type is set to `RIGHT`.
 
 ```python
-connector_type = ConnectorType.UP if "-up" in connector else ConnectorType.RIGHT if "-right" in connector else ConnectorType.DOWN if "--" in connector else ConnectorType.LEFT
+connector_type = ConnectorType.UP if "-up-" in connector else \
+                ConnectorType.LEFT if "-left-" in connector else \
+                ConnectorType.DOWN if "-down-" in connector else \
+                ConnectorType.RIGHT
 ```
 
-If the connector type is `UP` or `DOWN`, the connector length is set to the number of `-` characters in the connector minus 1.
+If the connector type is `UP` or `DOWN`, the connector length is set to the number of `-` characters in the connector minus 1 because one `-` character is always required to the connector code.
 
 ```python
 connector_length = connector.count("-") - 1 if connector_type in [ConnectorType.UP, ConnectorType.DOWN] else 1
 ```
 
-The target state is the third part.
+The `target` is the third part.
 
 ```python
-target_state = parts[2]
+target = parts[2]
 ```
 
-The messages are the remaining parts after the ":" character.
+If there are any messages, these will be stored in `part[4]` as `part[3]` will contain the ":" character. Thus, the length of the `parts` list is checked first. If it this is 5, then `parts[4]` can be split on the `\n` character.
 
 ```python
-messages_list = parts[4:]
+if len(parts) == 5:
+    messages_list = parts[4].split("\n")
+else:
+    messages_list = []
 ```
 
-The messages in this list are not `Message` objects yet because they are formatted as the variable name of the message. To convert them to `Message` objects, the message can be converted to the PlantUML message variable name and then use it to set the message.
+The `messages_list` is a list of variable names of the messages. This can now be converted to a set.
 
 ```python
-messages = []
-for message in messages_list:
-    message_variable_name = f"!{message}"
-    message_object = Message(0, message_variable_name, None)
-    messages.append(message_object)
-```
-
-The identifier is set to default value of `0` as this is not known at this point.
-
-```python
-identifier = 0
+messages = set(message for message in messages_list)
 ```
 
 The class method can then be called with the `cls` parameter set to `Transition`.
 
 ```python
-return cls(identifier, source_state, target_state, connector_type, connector_length, messages)
+return cls(source, target, connector_type, connector_length, messages)
 ```

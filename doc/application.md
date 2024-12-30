@@ -117,15 +117,25 @@ To show a diagram in the diagram canvas, the following method is used:
 
 To add an element to the diagram, the following methods are used:
 - [`add_element()`](#add-element): adds an element to the diagram.
-- [`add_state()`](#add-state): adds a state to the diagram.
-- [`add_choice_point()`](#add-choice-point): adds a choice-point to the diagram.
-- [`add_interface()`](#add-interface): adds an interface to the diagram.
-- [`add_message()`](#add-message): adds a message to the diagram.
 - [`add_transition()`](#add-transition): adds a transition to the diagram.
 
 To delete an element from the diagram, the following methods are used:
 - [`delete_element()`](#delete-element): deletes an element from the diagram.
 - [`delete_transition()`](#delete-transition): deletes a transition from the diagram.
+
+To edit the properties of an element, the following methods are used:
+- [`edit_selected_item()`](#edit-selected-item): edits the properties of the currently selected item.
+- [`edit_state_properties()`](#edit-state-properties): opens the properties dialog for a state.
+- [`edit_choice_point_properties()`](#edit-choice-point-properties): opens the properties dialog for a choice-point.
+- [`edit_interface_properties()`](#edit-interface-properties): opens the properties dialog for an interface.
+- [`edit_message_properties()`](#edit-message-properties): opens the properties dialog for a message.
+- [`edit_transition_properties()`](#edit-transition-properties): opens the properties dialog for a transition.
+
+To add a new element and open the dialog for specifying the properties of a new element, the following methods are used:
+- [`add_state()`](#add-state): opens the properties dialog for a state.
+- [`add_choice_point()`](#add-choice-point): opens the properties dialog for a choice-point.
+- [`add_interface()`](#add-interface): opens the properties dialog for an interface.
+- [`add_message()`](#add-message): opens the properties dialog for a message.
 
 ## Selecting elements
 
@@ -502,38 +512,94 @@ To fill the transitions table, the `fill_transitions_table()` method is called.
 def fill_transitions_table(self):
 ```
 
-The first step is to retrieve the transitions from the `PlantUMLManager` object and place them in the appropriate `elements` list. This is done by calling the [`get_elements_by_type()`](#get-elements-by-type) method with the type set to `ElementType.TRANSITION`.
-
-```python
-elements[ElementType.TRANSITION] = self.plantuml_manager.get_elements_by_type(ElementType.TRANSITION)
-```
-
-However, there is only one transition per source state and target state pair, which contains a list of messages. Therefore, the method must split the transitions into separate transitions for each message because in the transition table each message must be shown as a separate row.
-
-```python
-elements[ElementType.TRANSITION] = [transition for transition in elements[ElementType.TRANSITION] for message in transition.messages]
-```
-
-The second step is to order the transitions by their `source_state`, `target_state`, `interface` and `message` attributes.
-
-```python
-elements[ElementType.TRANSITION].sort(key=lambda transition: (transition.source_state, transition.target_state, transition.interface, transition.message))
-```
-
-The third step is to clear the table.
+The first step is to clear the table and the corresponding `elements` list.
 
 ```python
 self.transitions_table.delete(*self.transitions_table.get_children())
+elements[ElementType.TRANSITION] = []
 ```
 
-The fourth step is to iterate over the transitions and add them to the table.
+Then the transitions from `plantuml_manager` are retrieved by calling the [`get_elements_by_type()`](plantuml_manager.md#get-elements-by-type) method with the type set to `ElementType.TRANSITION`.
+
+```python
+transitions = self.plantuml_manager.get_elements_by_type(ElementType.TRANSITION)
+```
+
+However, there is only one transition per source and target pair, which contains a list of messages. However, in the transition table each message must be shown as a separate row with columns for the source, target, interface and message. Therefore, the method must split each transition into separate rows for the table for each message. To do this, the method must iterate over the transitions.
+
+```python
+for transition in transitions:
+    # ...
+```
+
+A transition stores it source and target as variable names. Because the source and target can be states or choice-points, the method retrieves the element by calling the [`get_element_by_variable_name()`](plantuml_manager.md#get-element-by-variable-name) method with the variable name as argument.
+
+```python
+    source = self.plantuml_manager.get_element_by_variable_name(transition.source)
+    target = self.plantuml_manager.get_element_by_variable_name(transition.target)
+```
+
+If the source or target state is not found, the method continues with the next transition.
+
+```python
+    if source is None or target is None:
+        continue
+```
+
+The method then retrieves the string representation of the source and target.
+
+```python
+    source = source.get_string_representation()
+    target = target.get_string_representation()
+```
+
+Then the method then must iterate over the messages in the transition.
+
+```python
+    for message in transition.messages:
+        # ...
+```
+
+Because a transition stores the messages as variable names, the method retrieves the message by calling the [`get_message_by_variable_name()`](plantuml_manager.md#get-message-by-variable-name) method with the variable name as argument.
+
+```python
+        message = self.plantuml_manager.get_message_by_variable_name(message)
+```
+
+If the message is not found, the method continues with the next message.
+
+```python
+        if message is None:
+            continue
+```
+
+The method then retrieves the interface of the message - which the message stores as the interface name - and the string representation of the message.
+
+```python
+        interface = message.interface
+        message = message.get_string_representation()
+```
+
+The method then adds the tuple with the `source`, `target`, `interface` and `message` to the `elements[ElementType.TRANSITION]` list.
+
+```python
+        elements[ElementType.TRANSITION].append((source, target, interface, message))
+```
+
+After all transitions are added to the `elements[ElementType.TRANSITION]` list, the method orders the transitions by their `source`, `target`, `interface` and `message` attributes.
+
+```python
+elements[ElementType.TRANSITION].sort(key=lambda x: (x[0], x[1], x[2], x[3]))
+```
+
+The method then iterates over the transitions and adds them to the table.
 
 ```python
 for transition in elements[ElementType.TRANSITION]:
-    self.transitions_table.insert("", tk.END, values=(transition.source_state, transition.target_state, transition.interface, transition.message))
+    self.transitions_table.insert("", tk.END, values=transition)
 ```
 
-In this way the index of the table row is the same as the index of the transition in the `transitions` list.
+In this way the index of the table row is the same as the index of the transition in the `elements[ElementType.TRANSITION]` list.
 
 ## Create the toolbar
 
@@ -614,6 +680,19 @@ elif button_name == "Add message":
 elif button_name == "Edit":
     self.edit_selected_item()
 ```
+
+For convenience, the following lists the references to the methods that are called for each button click:
+
+- [`save_diagram()`](#save-diagram)
+- [`undo_last_action()`](#undo-last-action)
+- [`redo_last_action()`](#redo-last-action)
+- [`delete_selected_item()`](#delete-selected-item)
+- [`add_state()`](#add-state)
+- [`add_choice_point()`](#add-choice-point)
+- [`add_transition()`](#add-transition)
+- [`add_interface()`](#add-interface)
+- [`add_message()`](#add-message)
+- [`edit_selected_item()`](#edit-selected-item)
 
 ## Listbox item click handler
 
@@ -1070,19 +1149,13 @@ elements = self.elements[new_element.element_type]
 elements_listbox = self.element_listbox[element.element_type]
 ```
 
-The method adds the element to the `PlantUMLManager` object and updates the diagram canvas and the appropriate listbox.
-
-```python
-self.plantuml_manager.add_element(element)
-```
-
-The first step is to retrieve the string representation of the element (e.g. the question of a choice point).
+Next, the method retrieves the string representation of the element (e.g. the question of a choice point).
 
 ```python
 string_representation = element.get_string_representation()
 ```
 
-Next, the string must be used to determine the index of the element in the appropriate `elements` list. This can be done using the fact that the `elements` list is ordered alphabetically. To do this, the method iterates over the list and compares the string representation to the elements in the list and returns the index of the element.
+The string must be used to determine the index of the element in the appropriate `elements` list. This can be done using the fact that the `elements` list is ordered alphabetically. To do this, the method iterates over the list and compares the string representation to the elements in the list and returns the index of the element.
 
 ```python
 index = 0
@@ -1104,140 +1177,6 @@ At the same index, the string can be added to the appropriate listbox.
 
 ```python
 elements_listbox.insert(index, string_representation)
-```
-
-## Add state
-
-To add a state to the diagram, the `add_state()` method is called.
-
-```python
-def add_state(self, new_state: State):
-```
-
-The method can call the generic [`add_element()`](#add-element) method.
-
-```python
-self.add_element(new_state)
-```
-
-Because the state is a visual element, the method must also update the diagram canvas and the states listbox.
-
-```python
-self.show_diagram()
-```
-
-## Add choice point
-
-To add a choice point to the diagram, the `add_choice_point()` method is called.
-
-```python
-def add_choice_point(self, new_choice_point: ChoicePoint):
-```
-
-The method can call the generic [`add_element()`](#add-element) method.
-
-```python
-self.add_element(new_choice_point)
-```
-
-Because the choice point is a visual element, the method must also update the diagram canvas and the choice points listbox.
-
-```python
-self.show_diagram()
-```
-
-## Add interface
-
-To add an interface to the diagram, the `add_interface()` method is called.
-
-```python
-def add_interface(self, new_interface: Interface):
-```
-
-The method can call the generic [`add_element()`](#add-element) method.
-
-```python
-self.add_element(new_interface)
-``` 
-
-Because the interface is not a visual element, the method does not need to update the diagram canvas.
-
-## Add message
-
-To add a message to the diagram, the `add_message()` method is called.
-
-```python
-def add_message(self, new_message: Message):
-```
-
-The method can call the generic [`add_element()`](#add-element) method.
-
-```python
-self.add_element(new_message)
-```
-
-Note that this is possible because a message can only be added when the interface is selected.
-
-Since the message is not a visual element, the method does not need to update the diagram canvas.
-
-## Add transition
-
-To add a transition to the diagram, the `add_transition()` method is called.
-
-```python
-def add_transition(self, new_transition: Transition):
-```
-
-The first step is to get a reference to the list of transitions.
-
-```python
-transitions = self.elements[ElementType.TRANSITION]
-```
-
-The method then adds the transition to the `PlantUMLManager` object.
-
-```python
-self.plantuml_manager.add_element(new_transition)
-```
-
-Next, the index of the transition must be determined in the `transitions` list. To do this, the method iterates over the list and compares the transition to the elements in the list and returns the index of the new transition.
-
-```python
-index = 0
-for i, transition in enumerate(transitions):
-    if (
-        transition.source_state,
-        transition.target_state,
-        transition.interface,
-        transition.message
-    ) > (
-        new_transition.source_state,
-        new_transition.target_state,
-        new_transition.interface,
-        new_transition.message
-    ):
-        index = i
-        break
-else:
-    index = len(transitions)
-```
-
-With the index known, the transition can be added to the `transitions` list.
-
-```python
-transitions.insert(index, new_transition)
-```
-
-At the same index, the transition can be added to the table.
-
-```python
-self.transitions_table.insert("", tk.END, values=(new_transition.source_state, new_transition.target_state, new_transition.interface, new_transition.message))
-```
-
-The method also updates the diagram canvas because the transition is a visual element.
-
-```python
-self.show_diagram()
 ```
 
 ## Delete element
@@ -1281,6 +1220,534 @@ If the element is a visual element, i.e. a state or a choice point, the method m
 if element.element_type in [ElementType.STATE, ElementType.CHOICE_POINT]:
     self.show_diagram()
 ```
+
+
+## Edit selected item
+
+To edit the properties of the currently selected item, the `edit_selected_item()` method is called.
+
+```python
+def edit_selected_item(self):
+```
+
+The method first retrieves the selected item. Because it is assured that the `plantuml_manager` object contains the selected items, the method can use this. For safety, it is checked whether there is one and only one selected item.
+
+```python
+if len(self.plantuml_manager.selected_items) == 1:
+    selected_item = self.plantuml_manager.selected_items[0]
+else:
+    return
+```
+
+Depending on the type of the selected item, the method opens the appropriate properties dialog.
+
+```python
+if selected_item.element_type == ElementType.STATE:
+    self.edit_state_properties(selected_item)
+elif selected_item.element_type == ElementType.CHOICE_POINT:
+    self.edit_choice_point_properties(selected_item)
+elif selected_item.element_type == ElementType.INTERFACE:
+    self.edit_interface_properties(selected_item)
+elif selected_item.element_type == ElementType.MESSAGE:
+    self.edit_message_properties(selected_item)
+elif selected_item.element_type == ElementType.TRANSITION:
+    self.edit_transition_properties(selected_item)
+```
+
+The method then updates the diagram canvas.
+
+```python
+self.show_diagram()
+```
+
+If the selected item is a transition, the transition table is updated, otherwise the corresponding listbox is updated by calling the [`update_transition_table()`](#update-transition-table) or [`update_listbox_element()`](#update-listbox-element) method respectively.
+
+```python
+if selected_item.element_type == ElementType.TRANSITION:
+    self.update_transition_table(selected_item)
+else:
+    self.update_listbox_element(selected_item)
+```
+
+## Edit state properties
+
+To edit the properties of a state, the `edit_state_properties()` method is called.
+
+```python
+def edit_state_properties(self, state: State):
+```
+
+The method creates a `PropertiesDialog` object with the appropriate fields and labels.
+
+```python
+fields = {"Name": state.name, "Display name": state.display_name}
+field_types = {"Name": "single_word", "Display name": "text"}
+dialog = PropertiesDialog(self, "State Properties", fields, field_types=field_types)
+```
+
+The method then checks whether the user has confirmed the dialog. If not, the method returns.
+
+```python
+if not dialog.result:
+    return
+```
+
+The method can now use the returned information to update the state. This is done by calling the `update_state()` method which returns `True` if the state was updated and `False` otherwise.
+
+```python
+if not self.plantuml_manager.update_state(state, new_name=dialog.result["Name"], new_display_name=dialog.result["Display name"]):
+    tk.messagebox.showerror("Error", "Failed to update state")
+    return
+```
+
+## Edit choice point properties
+
+To edit the properties of a choice point, the `edit_choice_point_properties()` method is called.
+
+```python
+def edit_choice_point_properties(self, choice_point: ChoicePoint):
+```
+
+The method creates a `PropertiesDialog` object with the appropriate fields and labels.
+
+```python
+fields = {"Name": choice_point.name, "Question": choice_point.question}
+field_types = {"Name": "single_word", "Question": "text"}
+dialog = PropertiesDialog(self, "Choice-point Properties", fields, field_types=field_types)
+```
+
+The method then checks whether the user has confirmed the dialog. If not, the method returns.
+
+```python
+if not dialog.result:
+    return
+```
+
+The method can now use the returned information to update the choice point. This is done by calling the `update_choice_point()` method which returns `True` if the choice point was updated and `False` otherwise.
+
+```python
+if not self.plantuml_manager.update_choice_point(choice_point, new_name=dialog.result["Name"], new_question=dialog.result["Question"]):
+    tk.messagebox.showerror("Error", "Failed to update choice point")
+    return
+```
+
+## Edit interface properties
+
+To edit the properties of an interface, the `edit_interface_properties()` method is called.
+
+```python
+def edit_interface_properties(self, interface: Interface):
+```
+
+The method creates a `PropertiesDialog` object with the appropriate fields and labels.
+
+```python
+fields = {"Name": interface.name}
+field_types = {"Name": "single_word"}
+dialog = PropertiesDialog(self, "Interface Properties", fields, field_types=field_types)
+```
+
+The method then checks whether the user has confirmed the dialog. If not, the method returns.
+
+```python
+if not dialog.result:
+    return
+```
+
+The method can now use the returned information to update the interface. This is done by calling the `update_interface()` method which returns `True` if the interface was updated and `False` otherwise.
+
+```python
+if not self.plantuml_manager.update_interface(interface, new_name=dialog.result["Name"]):
+    tk.messagebox.showerror("Error", "Failed to update interface")
+    return
+```
+
+## Edit message properties
+
+To edit the properties of a message, the `edit_message_properties()` method is called.
+
+```python
+def edit_message_properties(self, message: Message):
+```
+
+The method creates a `PropertiesDialog` object with the appropriate fields and labels.
+
+```python
+labels = {"Interface:": message.interface}
+fields = {"Name": message.name if message.interface else ""}
+field_types = {"Name": "single_word"}
+dialog = PropertiesDialog(self, "Message Properties", fields, labels, field_types=field_types)
+```
+
+The method then checks whether the user has confirmed the dialog. If not, the method returns.
+
+```python
+if not dialog.result:
+    return
+```
+
+The method can now use the returned information to update the message. This is done by calling the `update_message()` method which returns `True` if the message was updated and `False` otherwise.
+
+```python
+if not self.plantuml_manager.update_message(message, new_name=dialog.result["Name"]):
+    tk.messagebox.showerror("Error", "Failed to update message")
+    return
+```
+
+## Edit transition properties
+
+To edit the properties of a transition, the `edit_transition_properties()` method is called.
+
+```python
+def edit_transition_properties(self, transition: Transition):
+```
+
+The method creates a `PropertiesDialog` object with the appropriate fields and labels.
+
+```python
+labels = {
+    "Source state": transition.source_state,
+    "Interface": transition.interface,
+    "Message": transition.message,
+    "Target state": transition.target_state
+}
+fields = {
+    "Connector length": transition.connector_length
+}
+options = {
+    "Connector type": (transition.connector_type, ["Left", "Right", "Up", "Down"])
+}
+field_types = {"Connector length": "positive_integer"}
+dialog = PropertiesDialog(self, "Transition Properties", fields, labels, options, field_types=field_types)
+```
+
+The method then checks whether the user has confirmed the dialog. If not, the method returns.
+
+```python
+if not dialog.result:
+    return
+```
+
+The method can now use the returned information to update the transition. This is done by calling the `update_transition()` method which returns `True` if the transition was updated and `False` otherwise.
+
+```python
+if not self.plantuml_manager.update_transition(transition, new_connector_length=dialog.result["Connector length"], new_connector_type=dialog.result["Connector type"]):
+    tk.messagebox.showerror("Error", "Failed to update transition")
+    return
+```
+
+Because only the connector length and type can be changed, the other properties are not updated and thus the transition table is not updated.
+
+## Listbox element edited
+
+When the user edits a selected element in a listbox, the `listbox_element_edited()` method is called.
+
+```python
+def listbox_element_edited(self, updated_element: Element):
+```
+
+First the current index of the element in the listbox is retrieved.
+
+```python
+index = self.element[updated_element.element_type].index(updated_element)
+```
+
+With the index known, the appropriate `elements` list must be reordered.
+
+```python
+self.elements[updated_element.element_type].sort(key=lambda x: x.get_string_representation())
+```
+
+With the list reordered, the new index of the element in the listbox is retrieved.
+
+```python
+new_index = self.elements[updated_element.element_type].index(updated_element)
+```
+
+With the indices known, the element can be updated in the listbox.
+
+```python
+self.elements_listbox[updated_element.element_type].delete(index)
+self.elements_listbox[updated_element.element_type].insert(new_index, updated_element.get_string_representation())
+```
+
+The edited element must be selected again.
+
+```python
+self.elements_listbox[updated_element.element_type].select_set(new_index)
+```
+
+## Add state
+
+When the user clicks the "Add state" button, the `add_state()` method is called.
+
+```python
+def add_state(self):
+```
+
+The method creates a `PropertiesDialog` object with the appropriate fields and labels.
+
+```python
+fields = {"Name": "", "Display name": ""}
+field_types = {"Name": "single_word", "Display name": "text"}
+dialog = PropertiesDialog(self, "Add State", fields, field_types=field_types)
+```
+
+The method then checks whether the user has confirmed the dialog. If not, the method returns.
+
+```python
+if not dialog.result:
+    return
+```
+
+The method can now use the returned information to add a new state. This is done by calling the `add_state()` method which returns the new state or `None` if the state could not be added.
+
+```python
+new_state = self.plantuml_manager.add_state(dialog.result["Name"], dialog.result["Display name"])
+if new_state is None:
+    tk.messagebox.showerror("Error", "Failed to add state")
+    return
+```
+
+With properties specified, the generic [`add_element()`](#add-element) method is called.
+
+```python
+self.add_element(new_state)
+```
+
+Because the state is a visual element, the method must also update the diagram canvas and the states listbox.
+
+```python
+self.show_diagram()
+```
+
+## Add choice point
+
+When the user clicks the "Add choice point" button, the `add_choice_point()` method is called.
+
+```python
+def add_choice_point(self):
+```
+
+The method creates a `PropertiesDialog` object with the appropriate fields and labels.
+
+```python
+fields = {"Name": "", "Question": ""}
+field_types = {"Name": "single_word", "Question": "text"}
+dialog = PropertiesDialog(self, "Add Choice Point", fields, field_types=field_types)
+```
+
+The method then checks whether the user has confirmed the dialog. If not, the method returns.
+
+```python
+if not dialog.result:
+    return
+```
+
+The method can now use the returned information to add a new choice point. This is done by calling the `add_choice_point()` method which returns the new choice point or `None` if the choice point could not be added.
+
+```python
+new_choice_point = self.plantuml_manager.add_choice_point(dialog.result["Name"], dialog.result["Question"])
+if new_choice_point is None:
+    tk.messagebox.showerror("Error", "Failed to add choice point")
+    return
+```
+
+With properties specified, the generic [`add_element()`](#add-element) method is called.
+
+```python
+self.add_element(new_choice_point)
+```
+
+Because the choice point is a visual element, the method must also update the diagram canvas and the choice points listbox.
+
+```python
+self.show_diagram()
+```
+
+## Add interface
+
+When the user clicks the "Add interface" button, the `add_interface()` method is called.
+
+```python
+def add_interface(self):
+```
+
+The method creates a `PropertiesDialog` object with the appropriate fields and labels.
+
+```python
+fields = {"Name": ""}
+field_types = {"Name": "single_word"}
+dialog = PropertiesDialog(self, "Add Interface", fields, field_types=field_types)
+```
+
+The method then checks whether the user has confirmed the dialog. If not, the method returns.
+
+```python
+if not dialog.result:
+    return
+```
+
+The method can now use the returned information to add a new interface. This is done by calling the `add_interface()` method which returns the new interface or `None` if the interface could not be added.
+
+```python
+new_interface = self.plantuml_manager.add_interface(dialog.result["Name"])
+if new_interface is None:
+    tk.messagebox.showerror("Error", "Failed to add interface")
+    return
+```
+
+With properties specified, the generic [`add_element()`](#add-element) method is called.
+
+```python
+self.add_element(new_interface)
+```
+
+Because the interface is not a visual element, the diagram is not updated.
+
+## Add message
+
+When the user clicks the "Add message" button, the `add_message()` method is called.
+
+```python
+def add_message(self):
+```
+
+Because a message is always associated with an interface, the interface in the selected interface listbox must be retrieved first.
+
+```python
+interface_index = self.interfaces_listbox.curselection()[0]
+interface_name = self.interfaces[interface_index].name
+```
+
+The method creates a `PropertiesDialog` object with the appropriate fields and labels.
+
+```python
+labels = {"Interface": interface_name}
+fields = {"Name": ""}
+field_types = {"Name": "single_word"}
+dialog = PropertiesDialog(self, "Add Message", fields, labels, field_types=field_types)
+```
+
+The method then checks whether the user has confirmed the dialog. If not, the method returns.
+
+```python
+if not dialog.result:
+    return
+```
+
+The method can now use the returned information to add a new message. This is done by calling the `add_message()` method which returns the new message or `None` if the message could not be added.
+
+```python
+new_message = self.plantuml_manager.add_message(interface_name, dialog.result["Name"])
+if new_message is None:
+    tk.messagebox.showerror("Error", "Failed to add message")
+    return
+```
+
+With properties specified, the generic [`add_element()`](#add-element) method is called.
+
+```python
+self.add_element(new_message)
+```
+
+Because the message is not a visual element, the diagram is not updated.
+
+## Add transition
+
+When the user clicks the "Add transition" button, the `add_transition()` method is called.
+
+```python
+def add_transition(self):
+```
+
+In order for a transition to be added, a source and a target must be selected. To also take self-transitions into account, this means that a single element can be selected as both source and target.
+
+First the selected elements are evaluated.
+
+```python
+selected_elements = []
+selected_messages = []
+for element in self.plantuml_manager.selected_elements:
+    if element.element_type == ElementType.STATE or element.element_type == ElementType.CHOICE_POINT:
+        selected_elements.append(element)
+    elif element.element_type == ElementType.MESSAGE:
+        selected_messages.append(element)
+```
+
+The first element in the `selected_elements` list is used as source.
+
+```python
+source = selected_elements[0]
+```
+
+If there is only one selected element, the user wants to add a self-transition and the selected element is used as target as well.
+
+```python
+if len(selected_elements) == 1:
+    target = selected_elements[0]
+else:
+    target = selected_elements[1]
+```
+
+With this information, the [`add_transition()`](plantuml_manager.md#add-a-new-transition) method of the `PlantUMLManager` can be called.
+
+```python
+transition = self.plantuml_manager.add_transition(source, target, selected_messages)
+```
+
+If the transition could not be added, an error message is shown.
+
+```python
+if transition is None:
+    tk.messagebox.showerror("Error", "Failed to add transition")
+    return
+```
+
+With the transition added, the transition table is refilled.
+
+```python
+self.fill_transitions_table()
+self.show_diagram()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Appendix - `create_image()`
 
@@ -1357,6 +1824,7 @@ root.mainloop()
 ```
 
 This method is useful for creating GUIs where you want to display images as part of a graphical layout.
+
 
 
 
