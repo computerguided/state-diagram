@@ -1,0 +1,5 @@
+START -> Advertising
+Connecting -> Advertising
+Connecting -left-> Advertising : $RTx_ConnectReq
+Connecting -up-> Advertising : $RTx_ConnectedInd\n$RTx_ConnectReq
+Connecting -> Advertising : $RTx_ConnectedInd\n$RTx_ConnectReq

@@ -581,7 +581,7 @@ The `Transition` class has the following additional attributes:
 - `target`: a string containing the _variable name_ of the target state or choice-point of the transition.
 - `connector_type`: an enum (`Left`, `Right`, `Up`, `Down`) containing the type of the connector of the transition.
 - `connector_length`: an integer containing the length of the connector of the transition.
-- `messages`: a set of strings containing the _variable names_ of the messages of the transition. This set can be empty, for example when the transition is used as a placeholder for a transition or when the source is the "Start" state, in which case there is no message associated with the transition.
+- `events`: a set of string-pairs containing the interface and message name of the events of the transition. This set can be empty, for example when the transition is used as a placeholder for a transition or when the source is the "Start" state, in which case there is no event associated with the transition.
 
 ### Constructor
 
@@ -594,14 +594,14 @@ The constructor of the class takes the following arguments of which the messages
                 target: str, 
                 connector_type: ConnectorType, 
                 connector_length: int, 
-                messages: set[str] = set()):
+                events: set[tuple[str, str]] = set()):
 
         super().__init__(ElementType.TRANSITION, identifier)
         self.source = source
         self.target = target
         self.connector_type = connector_type
         self.connector_length = connector_length
-        self.messages = messages
+        self.events = events
 ```
 
 ### Methods
@@ -697,8 +697,8 @@ Finally the messages are added to the transition code. This is only done if ther
 ```python
 if len(self.messages) > 0:
     transition_code += " : "
-    for message in self.messages:
-        transition_code += f"{message}\\n"
+    for event in self.events:
+        transition_code += f"${event[0]}_{event[1]}"
 return transition_code
 ```
 
@@ -769,19 +769,24 @@ If there are any messages, these will be stored in `part[4]` as `part[3]` will c
 
 ```python
 if len(parts) == 5:
-    messages_list = parts[4].split("\n")
+    message_list = parts[4].split("\n")
 else:
-    messages_list = []
+    message_list = []
 ```
 
-The `messages_list` is a list of variable names of the messages. This can now be converted to a set.
+The `message_variable_names` is now a list of variable names of the messages, for example `["$RTx_ConnectReq", "$RTx_ConnectedInd"]`. 
+
+By iterating over this list, the events can be created.
 
 ```python
-messages = set(message for message in messages_list)
+for message_variable_name in message_variable_names:
+    interface = message_variable_name.split("_")[0][1:]
+    message = message_variable_name.split("_")[1]
+    events.add((interface, message))
 ```
 
 The class method can then be called with the `cls` parameter set to `Transition`.
 
 ```python
-return cls(source, target, connector_type, connector_length, messages)
+return cls(source, target, connector_type, connector_length, events)
 ```
